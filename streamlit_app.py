@@ -1,9 +1,11 @@
+import base64
+
 import streamlit as st
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import json
 
-
+from utils import read_json
 
 # Streamlit UI
 st.set_page_config(page_title="AI-Powered Real Estate Assistant", layout="wide")
@@ -16,27 +18,57 @@ if user_email:
 
     # Fetch properties from Firestore
     st.subheader("🏠 Recommended Properties")
-    properties_ref = db.collection("properties")
-    properties = properties_ref.stream()
+    # shortlist = shortlist_doc.to_dict().get("properties", [])
+    shortlist = read_json("cache/shortlist.json")
+    for prop in shortlist:
+        st.markdown("---")  # Adds a separator between properties
+        with st.container():
+            col1, col2 = st.columns([1, 2])
 
-    for prop in properties:
-        prop_data = prop.to_dict()
-        st.write(f"**{prop_data['title']}** - {prop_data['price']}")
-        st.image(prop_data['image_url'], width=300)
+            # Display a single image on the left
+            with col1:
+                if prop.get("compressed_images"):
+                    img_data = base64.b64decode(prop["compressed_images"][0])
+                    st.image(img_data, use_column_width=True)
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button(f"💾 Save {prop.id}"):
-                db.collection("users").document(user_email).update(
-                    {"saved_properties": firestore.ArrayUnion([prop.id])})
-                st.success("Property saved!")
+            # Display match criteria and places of interest on the right
+            with col2:
+                st.markdown(
+                    f"""
+                        <div style="border: 2px solid #ddd; padding: 15px; border-radius: 10px;">
+                            <h4>{prop['address']} - £{prop['price']}</h4>
+                        """,
+                    unsafe_allow_html=True,
+                )
 
-        with col2:
-            if st.button(f"📅 Arrange Viewing {prop.id}"):
-                db.collection("users").document(user_email).update(
-                    {"viewing_requests": firestore.ArrayUnion([prop.id])})
-                st.success("Viewing requested!")
+                # Match criteria with ✅ emoji
+                match_criteria = prop.get("match_output", {})
+                for key, value in match_criteria.items():
+                    if isinstance(value, bool) and value:
+                        st.write(f"✅ {key.replace('_', ' ').capitalize()}")
 
-    # Sidebar for user account settings
-    st.sidebar.header("⚙️ Account Settings")
-    st.sidebar.write("Update your details here.")
+                # Places of Interest
+                st.write("**Nearby Places of Interest:**")
+                for place in prop.get("places_of_interest", []):
+                    st.write(f"- {place['name']} (⭐ {place['rating']})")
+
+                # Save and Viewing Buttons
+                col3, col4 = st.columns(2)
+                with col3:
+                    if st.button(f"💾 Save {prop['property_id']}"):
+                        # db.collection("users").document(user_email).update(
+                        #     {"saved_properties": firestore.ArrayUnion([prop['property_id']])})
+                        st.success("Property saved!")
+                with col4:
+                    if st.button(f"📅 Arrange Viewing {prop['property_id']}"):
+                        # db.collection("users").document(user_email).update(
+                        #     {"viewing_requests": firestore.ArrayUnion([prop['property_id']])})
+                        st.success("Viewing requested!")
+
+                st.markdown("</div>", unsafe_allow_html=True)
+else:
+    st.warning("No shortlisted properties found.")
+
+# Sidebar for user account settings
+st.sidebar.header("⚙️ Account Settings")
+st.sidebar.write("Update your details here.")
