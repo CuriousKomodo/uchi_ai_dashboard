@@ -9,7 +9,7 @@ from utils import read_json
 
 
 
-firestore = FireStore()
+firestore = FireStore(credential_info=st.secrets["firestore_credentials"])
 st.set_page_config(page_title="AI-Powered Real Estate Assistant", layout="wide")
 # Initialize session state for authentication
 if "authenticated" not in st.session_state:
