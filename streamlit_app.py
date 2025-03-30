@@ -1,15 +1,13 @@
 import base64
+import json
 
 import streamlit as st
-from google.oauth2 import id_token
-from google.auth.transport import requests
-import json
 
 from connection.firestore import FireStore
 from custom_exceptions import NoUserFound
 from utils import read_json
 
-import streamlit as st
+
 
 firestore = FireStore()
 st.set_page_config(page_title="AI-Powered Real Estate Assistant", layout="wide")
