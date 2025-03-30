@@ -1,3 +1,4 @@
+import itertools
 import os
 from typing import List, Dict, Optional
 
@@ -7,10 +8,11 @@ from datetime import datetime, timezone, timedelta
 from google.cloud.firestore_v1 import FieldFilter
 from pydantic import ValidationError
 
+from custom_exceptions import NoUserFound
 from schema.firestore import Submission
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-credential_info_path = f"{dir_path}/firestore_credentials.json"
+credential_info_path = f"{dir_path}/firestore_key.json"
 
 
 class FireStore:
@@ -136,7 +138,7 @@ class FireStore:
             'created_at': datetime.now()
         })
 
-    def get_shortlist(
+    def get_shortlist_properties(
             self,
             shortlist_id: str,
             threshold=0.6,
@@ -175,7 +177,28 @@ class FireStore:
         return filtered_shortlist
 
 
+    def get_shortlists_by_user_id(self, user_id: str) -> List[Dict]:
+        shortlists = self.shortlist_collection.where("user_id", "==", user_id).get()
+        shortlists.sort(key=lambda x: x.create_time, reverse=True)
+        all_shortlisted_properties = []
+
+        for shortlist in shortlists:
+            shortlist_properties = self.get_shortlist_properties(shortlist_id=shortlist.id, extraction_included=True)
+            all_shortlisted_properties.extend(shortlist_properties)
+        return all_shortlisted_properties
+
+    def fetch_user_details_by_email(self, email) -> Dict:
+        users = self.db.collection('users').where('email', '==', email).get()
+        if not users:
+            raise NoUserFound(f"There is no user with the email: {email}")
+        else:
+            user_details = users[0].to_dict()
+            user_details.update({"user_id":users[0].id})
+        return user_details
+
 
 if __name__ == '__main__':
     firestore = FireStore()
-    submissions = firestore.list_all_submissions()
+    # submissions = firestore.list_all_submissions()
+    firestore.fetch_user_details_by_email('hu.kefei@yahoo.co.uk')
+    firestore.get_shortlists_by_user_id("uUjGIe4uaSIK7m0skEwV")
