@@ -8,7 +8,6 @@ from custom_exceptions import NoUserFound
 from utils import read_json
 
 
-
 firestore = FireStore(credential_info=st.secrets["firestore_credentials"])
 st.set_page_config(page_title="AI-Powered Real Estate Assistant", layout="wide")
 # Initialize session state for authentication
@@ -73,7 +72,9 @@ def load_main_dashboard():
                 with col2:
                     st.write("<h5>🏠Matched property criteria: </h5>", unsafe_allow_html=True)
                     match_criteria = prop.get("match_output", {})
-                    match_criteria_string = ""
+                    match_criteria_additional = prop.get("matched_criteria", {})
+                    match_criteria.update(match_criteria_additional)
+                    match_criteria_string = ""  # widgets with colors
                     for key, value in match_criteria.items():
                         if isinstance(value, bool) and value:
                             match_criteria_string += f" {key.replace('_', ' ').capitalize()} ✅  "

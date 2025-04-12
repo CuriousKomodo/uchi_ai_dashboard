@@ -141,7 +141,6 @@ class FireStore:
     def get_shortlist_properties(
             self,
             shortlist_id: str,
-            threshold=0.6,
             property_included: bool = True,
             extraction_included: bool = False
     ) -> List[Dict]:
@@ -151,21 +150,20 @@ class FireStore:
         # Only filter for the top ones, and join with the property details
         filtered_shortlist = []
         for shortlist_item in doc.to_dict()["properties"]:
-            if shortlist_item["match_score"] >= threshold:
-                if property_included:
-                    property_id = shortlist_item["property_id"]
-                    query = self.property_collection.where("id", "==", property_id)  # Assuming "id" is a field in the documents
-                    results = query.stream()
-                    property = []
-                    for doc in results:
-                        property.append(doc.to_dict())
+            if property_included:
+                property_id = shortlist_item["property_id"]
+                query = self.property_collection.where("id", "==", property_id)  # Assuming "id" is a field in the documents
+                results = query.stream()
+                property = []
+                for doc in results:
+                    property.append(doc.to_dict())
 
-                    if property:
-                        shortlist_item["address"] = property[0].get("address")
-                        shortlist_item["postcode"] = property[0].get("postcode")
-                        shortlist_item["price"] = property[0].get("price")
-                        shortlist_item["num_bedrooms"] = property[0].get("num_bedrooms")
-                        shortlist_item["stations"] = property[0].get("stations")
+                if property:
+                    shortlist_item["address"] = property[0].get("address")
+                    shortlist_item["postcode"] = property[0].get("postcode")
+                    shortlist_item["price"] = property[0].get("price")
+                    shortlist_item["num_bedrooms"] = property[0].get("num_bedrooms")
+                    shortlist_item["stations"] = property[0].get("stations")
 
                 if extraction_included:
                     extraction_id = shortlist_item["extraction_id"]
