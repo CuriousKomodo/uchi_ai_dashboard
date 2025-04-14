@@ -1,5 +1,7 @@
 import base64
 import json
+import time
+from typing import Dict, List
 
 import streamlit as st
 
@@ -7,13 +9,40 @@ from connection.firestore import FireStore
 from custom_exceptions import NoUserFound
 from utils import read_json
 
+# Constants for cache management
+MAX_CACHED_PROPERTIES = 10  # Maximum number of properties to cache
+CACHE_CLEANUP_THRESHOLD = 15  # Cleanup when this many properties are cached
 
 firestore = FireStore(credential_info=st.secrets["firestore_credentials"])
 st.set_page_config(page_title="AI-Powered Real Estate Assistant", layout="wide")
-# Initialize session state for authentication
+
+# Initialize session state for authentication and cache management
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
+if "last_access_time" not in st.session_state:
+    st.session_state.last_access_time = {}
 
+def cleanup_old_caches():
+    """Clean up old caches when we exceed the threshold."""
+    if len(st.session_state.decoded_images) > CACHE_CLEANUP_THRESHOLD:
+        # Sort properties by last access time
+        sorted_properties = sorted(
+            st.session_state.last_access_time.items(),
+            key=lambda x: x[1]
+        )
+        
+        # Remove oldest caches until we're under the limit
+        for property_id, _ in sorted_properties:
+            if len(st.session_state.decoded_images) <= MAX_CACHED_PROPERTIES:
+                break
+            if property_id in st.session_state.decoded_images:
+                del st.session_state.decoded_images[property_id]
+                del st.session_state.image_indices[property_id]
+                del st.session_state.last_access_time[property_id]
+
+def update_cache_access_time(property_id: str):
+    """Update the last access time for a property's cache."""
+    st.session_state.last_access_time[property_id] = time.time()
 
 def load_main_dashboard():
     st.title("🏡 Uchi: AI-Powered Real Estate Assistant")
@@ -26,9 +55,16 @@ def load_main_dashboard():
         shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
 
     if shortlist:
-        # Initialize session state for image indices if not exists
+        # Initialize session state for image indices and decoded images if not exists
         if "image_indices" not in st.session_state:
             st.session_state.image_indices = {}
+        if "decoded_images" not in st.session_state:
+            st.session_state.decoded_images = {}
+        if "last_access_time" not in st.session_state:
+            st.session_state.last_access_time = {}
+
+        # Clean up old caches if needed
+        cleanup_old_caches()
 
         for prop in shortlist:
             st.markdown("---")  # Adds a separator between properties
@@ -40,36 +76,75 @@ def load_main_dashboard():
                 with col2:
                     if st.button(f"❤️ Save", key=f"save {prop['property_id']}"):
                         st.success("Property saved!")
+            
+            # Create a container for the image gallery
+            image_container = st.container()
+            
             with st.container():
                 col1, col2 = st.columns([1, 2])
                 # Display a single image on the left
                 with col1:
                     if prop.get("compressed_images"):
                         property_id = prop['property_id']
+                        
+                        # Update last access time
+                        update_cache_access_time(property_id)
+                        
                         if property_id not in st.session_state.image_indices:
                             st.session_state.image_indices[property_id] = 0
+                            # Pre-decode all images for this property
+                            try:
+                                st.session_state.decoded_images[property_id] = [
+                                    base64.b64decode(img) for img in prop["compressed_images"]
+                                ]
+                            except Exception as e:
+                                st.error(f"Error decoding images: {str(e)}")
+                                continue
 
                         img_index = st.session_state.image_indices[property_id]
                         
-                        # Lazy load image
-                        try:
-                            img_data = base64.b64decode(prop["compressed_images"][img_index])
-                            st.image(img_data, use_column_width=True)
-                        except Exception as e:
-                            st.error(f"Error loading image: {str(e)}")
+                        # Use the pre-decoded image
+                        with image_container:
+                            try:
+                                st.image(
+                                    st.session_state.decoded_images[property_id][img_index],
+                                    use_column_width=True
+                                )
+                            except Exception as e:
+                                st.error(f"Error displaying image: {str(e)}")
 
+                        # Navigation buttons
                         col_img1, col_img2, col_img3 = st.columns([1,1,1])
                         with col_img1:
-                            if st.button("⬅️prev", key=f" Previous {property_id}") and img_index > 0:
-                                st.session_state.image_indices[property_id] -= 1
-                                st.rerun()
+                            if st.button("⬅️prev", key=f"prev_{property_id}"):
+                                if img_index > 0:
+                                    st.session_state.image_indices[property_id] -= 1
+                                    update_cache_access_time(property_id)
+                                    # Update only the image container
+                                    with image_container:
+                                        try:
+                                            st.image(
+                                                st.session_state.decoded_images[property_id][st.session_state.image_indices[property_id]],
+                                                use_column_width=True
+                                            )
+                                        except Exception as e:
+                                            st.error(f"Error displaying image: {str(e)}")
                         with col_img3:
-                            if st.button("next ➡️", key=f"️ Next {property_id}") and img_index < len(
-                                    prop["compressed_images"]) - 1:
-                                st.session_state.image_indices[property_id] += 1
-                                st.rerun()
+                            if st.button("next ➡️", key=f"next_{property_id}"):
+                                if img_index < len(prop["compressed_images"]) - 1:
+                                    st.session_state.image_indices[property_id] += 1
+                                    update_cache_access_time(property_id)
+                                    # Update only the image container
+                                    with image_container:
+                                        try:
+                                            st.image(
+                                                st.session_state.decoded_images[property_id][st.session_state.image_indices[property_id]],
+                                                use_column_width=True
+                                            )
+                                        except Exception as e:
+                                            st.error(f"Error displaying image: {str(e)}")
                         with col_img2:
-                            pass
+                            st.write(f"Image {img_index + 1} of {len(prop['compressed_images'])}")
 
                     if "stations" in prop:
                         st.write("**🚉 Nearest Stations:**")
