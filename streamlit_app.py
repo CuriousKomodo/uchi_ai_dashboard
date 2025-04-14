@@ -7,7 +7,7 @@ import streamlit as st
 
 from connection.firestore import FireStore
 from custom_exceptions import NoUserFound
-from utils.image_gallery_utils import ImageGalleryManager
+from utils.image_gallery_manager import ImageGalleryManager
 
 # Constants for cache management
 MAX_CACHED_PROPERTIES = 10  # Maximum number of properties to cache
@@ -55,8 +55,9 @@ def load_main_dashboard():
         shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
 
     if shortlist:
-        # Initialize image gallery manager
+        # Initialize image gallery manager and pre-decode all images
         gallery_manager = ImageGalleryManager()
+        gallery_manager.pre_decode_images(shortlist)
 
         for prop in shortlist:
             st.markdown("---")  # Adds a separator between properties
