@@ -3,6 +3,8 @@ import os
 from typing import List, Dict, Optional
 import time
 import concurrent.futures
+from cachetools import TTLCache, LRUCache, cached, TTLCache
+from collections import defaultdict
 
 from google.cloud import firestore
 from datetime import datetime, timezone, timedelta
@@ -12,6 +14,7 @@ from pydantic import ValidationError
 
 from custom_exceptions import NoUserFound
 from schema.firestore import Submission
+from connection.cache_utils import CacheManager
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 credential_info_path = f"{dir_path}/firestore_key.json"
@@ -29,25 +32,84 @@ class FireStore:
         self.property_collection = self.db.collection('properties')
         self.shortlist_collection = self.db.collection('shortlist')
         self.extraction_collection = self.db.collection('extraction')
-        # Initialize cache
-        self._property_cache = {}
-        self._extraction_cache = {}
-        self._cache_timeout = 300  # 5 minutes cache timeout
-        self._last_cache_update = {}
+        
+        # Initialize cache manager
+        self.cache_manager = CacheManager()
 
-    def _get_from_cache(self, cache_key: str, cache_dict: dict) -> Optional[Dict]:
-        """Get item from cache if it exists and is not expired."""
-        if cache_key in cache_dict:
-            item, timestamp = cache_dict[cache_key]
-            if time.time() - timestamp < self._cache_timeout:
-                return item
-            else:
-                del cache_dict[cache_key]
-        return None
+    @cached(cache=TTLCache(maxsize=1000, ttl=300))
+    def _fetch_property(self, property_id: str) -> Optional[Dict]:
+        """Fetch a single property with caching."""
+        try:
+            # Check if in cache
+            if property_id in self.cache_manager.get_property_cache():
+                self.cache_manager._update_cache_stats('property', hit=True)
+                return self.cache_manager.get_property_cache()[property_id]
+            
+            # If not in cache, fetch from Firestore
+            self.cache_manager._update_cache_stats('property', hit=False)
+            doc = self.property_collection.where("id", "==", property_id).get()
+            if doc:
+                return doc[0].to_dict()
+            return None
+        except Exception as e:
+            print(f"Error fetching property {property_id}: {str(e)}")
+            return None
 
-    def _add_to_cache(self, cache_key: str, item: Dict, cache_dict: dict):
-        """Add item to cache with current timestamp."""
-        cache_dict[cache_key] = (item, time.time())
+    @cached(cache=TTLCache(maxsize=1000, ttl=300))
+    def _fetch_extraction(self, property_id: str) -> Optional[Dict]:
+        """Fetch a single extraction with caching."""
+        try:
+            # Check if in cache
+            if property_id in self.cache_manager.get_extraction_cache():
+                self.cache_manager._update_cache_stats('extraction', hit=True)
+                return self.cache_manager.get_extraction_cache()[property_id]
+            
+            # If not in cache, fetch from Firestore
+            self.cache_manager._update_cache_stats('extraction', hit=False)
+            doc = self.extraction_collection.where("property_id", "==", property_id).get()
+            if doc:
+                return doc[0].to_dict()
+            return None
+        except Exception as e:
+            print(f"Error fetching extraction {property_id}: {str(e)}")
+            return None
+
+
+    def _fetch_properties(self, property_ids: List[str]) -> Dict[str, Dict]:
+        """Fetch properties in parallel."""
+        properties = {}
+        
+        # Fetch properties in parallel
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_property = {executor.submit(self._fetch_property, pid): pid for pid in property_ids}
+            for future in concurrent.futures.as_completed(future_to_property):
+                property_id = future_to_property[future]
+                try:
+                    property_data = future.result()
+                    if property_data:
+                        properties[property_id] = property_data
+                except Exception as e:
+                    print(f"Error fetching property {property_id}: {str(e)}")
+        
+        return properties
+
+    def _fetch_extractions(self, property_ids: List[str]) -> Dict[str, Dict]:
+        """Fetch extractions in parallel."""
+        extractions = {}
+        
+        # Fetch extractions in parallel
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_extraction = {executor.submit(self._fetch_extraction, pid): pid for pid in property_ids}
+            for future in concurrent.futures.as_completed(future_to_extraction):
+                property_id = future_to_extraction[future]
+                try:
+                    extraction_data = future.result()
+                    if extraction_data:
+                        extractions[property_id] = extraction_data
+                except Exception as e:
+                    print(f"Error fetching extraction {property_id}: {str(e)}")
+        
+        return extractions
 
     def insert_submission(self, results):
         # Create the new user
@@ -158,73 +220,6 @@ class FireStore:
             "submission_id": submission_id,
             'created_at': datetime.now()
         })
-
-    def _fetch_properties(self, property_ids: List[str]) -> Dict[str, Dict]:
-        """Fetch properties in parallel."""
-        properties = {}
-        uncached_property_ids = []
-        
-        # Check cache first
-        for property_id in property_ids:
-            cached_property = self._get_from_cache(property_id, self._property_cache)
-            if cached_property:
-                properties[property_id] = cached_property
-            else:
-                uncached_property_ids.append(property_id)
-        
-        # Fetch uncached properties in parallel
-        if uncached_property_ids:
-            def fetch_property(property_id):
-                doc = self.property_collection.where("id", "==", property_id).get()
-                if doc:
-                    property_data = doc[0].to_dict()
-                    self._add_to_cache(property_id, property_data, self._property_cache)
-                    return property_id, property_data
-                return None
-            
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future_to_property = {executor.submit(fetch_property, pid): pid for pid in uncached_property_ids}
-                for future in concurrent.futures.as_completed(future_to_property):
-                    result = future.result()
-                    if result:
-                        property_id, property_data = result
-                        properties[property_id] = property_data
-        
-        return properties
-
-    def _fetch_extractions(self, property_ids: List[str]) -> Dict[str, Dict]:
-        """Fetch extractions in parallel."""
-        extractions = {}
-        uncached_extraction_ids = []
-        
-        # Check cache first
-        for property_id in property_ids:
-            cached_extraction = self._get_from_cache(property_id, self._extraction_cache)
-            if cached_extraction:
-                extractions[property_id] = cached_extraction
-            else:
-                uncached_extraction_ids.append(property_id)
-        
-        # Fetch uncached extractions in parallel
-        if uncached_extraction_ids:
-            def fetch_extraction(property_id):
-                doc = self.extraction_collection.where("property_id", "==", property_id).get()
-                if doc:
-                    extraction_data = doc[0].to_dict()
-                    self._add_to_cache(property_id, extraction_data, self._extraction_cache)
-                    return property_id, extraction_data
-                return None
-            
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future_to_extraction = {executor.submit(fetch_extraction, pid): pid for pid in uncached_extraction_ids}
-                for future in concurrent.futures.as_completed(future_to_extraction):
-                    result = future.result()
-                    if result:
-                        property_id, extraction_data = result
-                        if extraction_data:
-                            extractions[property_id] = extraction_data
-        
-        return extractions
 
     def get_shortlists_by_user_id(self, user_id: str) -> List[Dict]:
         # Query for shortlists
