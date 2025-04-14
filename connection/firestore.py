@@ -1,6 +1,8 @@
 import itertools
 import os
 from typing import List, Dict, Optional
+import time
+import concurrent.futures
 
 from google.cloud import firestore
 from datetime import datetime, timezone, timedelta
@@ -27,6 +29,25 @@ class FireStore:
         self.property_collection = self.db.collection('properties')
         self.shortlist_collection = self.db.collection('shortlist')
         self.extraction_collection = self.db.collection('extraction')
+        # Initialize cache
+        self._property_cache = {}
+        self._extraction_cache = {}
+        self._cache_timeout = 300  # 5 minutes cache timeout
+        self._last_cache_update = {}
+
+    def _get_from_cache(self, cache_key: str, cache_dict: dict) -> Optional[Dict]:
+        """Get item from cache if it exists and is not expired."""
+        if cache_key in cache_dict:
+            item, timestamp = cache_dict[cache_key]
+            if time.time() - timestamp < self._cache_timeout:
+                return item
+            else:
+                del cache_dict[cache_key]
+        return None
+
+    def _add_to_cache(self, cache_key: str, item: Dict, cache_dict: dict):
+        """Add item to cache with current timestamp."""
+        cache_dict[cache_key] = (item, time.time())
 
     def insert_submission(self, results):
         # Create the new user
@@ -138,51 +159,116 @@ class FireStore:
             'created_at': datetime.now()
         })
 
-    def get_shortlist_properties(
-            self,
-            shortlist_id: str,
-            property_included: bool = True,
-            extraction_included: bool = False
-    ) -> List[Dict]:
-        doc_ref = self.shortlist_collection.document(shortlist_id)
-        doc = doc_ref.get()
+    def _fetch_properties(self, property_ids: List[str]) -> Dict[str, Dict]:
+        """Fetch properties in parallel."""
+        properties = {}
+        uncached_property_ids = []
+        
+        # Check cache first
+        for property_id in property_ids:
+            cached_property = self._get_from_cache(property_id, self._property_cache)
+            if cached_property:
+                properties[property_id] = cached_property
+            else:
+                uncached_property_ids.append(property_id)
+        
+        # Fetch uncached properties in parallel
+        if uncached_property_ids:
+            def fetch_property(property_id):
+                doc = self.property_collection.where("id", "==", property_id).get()
+                if doc:
+                    property_data = doc[0].to_dict()
+                    self._add_to_cache(property_id, property_data, self._property_cache)
+                    return property_id, property_data
+                return None
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future_to_property = {executor.submit(fetch_property, pid): pid for pid in uncached_property_ids}
+                for future in concurrent.futures.as_completed(future_to_property):
+                    result = future.result()
+                    if result:
+                        property_id, property_data = result
+                        properties[property_id] = property_data
+        
+        return properties
 
-        # Only filter for the top ones, and join with the property details
-        filtered_shortlist = []
-        for shortlist_item in doc.to_dict()["properties"]:
-            if property_included:
-                property_id = shortlist_item["property_id"]
-                query = self.property_collection.where("id", "==", property_id)  # Assuming "id" is a field in the documents
-                results = query.stream()
-                property = []
-                for doc in results:
-                    property.append(doc.to_dict())
-
-                if property:
-                    shortlist_item["address"] = property[0].get("address")
-                    shortlist_item["postcode"] = property[0].get("postcode")
-                    shortlist_item["price"] = property[0].get("price")
-                    shortlist_item["num_bedrooms"] = property[0].get("num_bedrooms")
-                    shortlist_item["stations"] = property[0].get("stations")
-
-                if extraction_included:
-                    extraction_id = shortlist_item["extraction_id"]
-                    extraction_ref = self.extraction_collection.document(extraction_id)
-                    extraction = extraction_ref.get().to_dict()
-                    shortlist_item.update(extraction["results"])
-
-                filtered_shortlist.append(shortlist_item)
-        return filtered_shortlist
-
+    def _fetch_extractions(self, property_ids: List[str]) -> Dict[str, Dict]:
+        """Fetch extractions in parallel."""
+        extractions = {}
+        uncached_extraction_ids = []
+        
+        # Check cache first
+        for property_id in property_ids:
+            cached_extraction = self._get_from_cache(property_id, self._extraction_cache)
+            if cached_extraction:
+                extractions[property_id] = cached_extraction
+            else:
+                uncached_extraction_ids.append(property_id)
+        
+        # Fetch uncached extractions in parallel
+        if uncached_extraction_ids:
+            def fetch_extraction(property_id):
+                doc = self.extraction_collection.where("property_id", "==", property_id).get()
+                if doc:
+                    extraction_data = doc[0].to_dict()
+                    self._add_to_cache(property_id, extraction_data, self._extraction_cache)
+                    return property_id, extraction_data
+                return None
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future_to_extraction = {executor.submit(fetch_extraction, pid): pid for pid in uncached_extraction_ids}
+                for future in concurrent.futures.as_completed(future_to_extraction):
+                    result = future.result()
+                    if result:
+                        property_id, extraction_data = result
+                        if extraction_data:
+                            extractions[property_id] = extraction_data
+        
+        return extractions
 
     def get_shortlists_by_user_id(self, user_id: str) -> List[Dict]:
+        # Query for shortlists
         shortlists = self.shortlist_collection.where("user_id", "==", user_id).get()
-        shortlists.sort(key=lambda x: x.create_time, reverse=True)
-        all_shortlisted_properties = []
-
+        
+        if not shortlists:
+            return []
+        
+        # Get all property IDs
+        property_ids = []
         for shortlist in shortlists:
-            shortlist_properties = self.get_shortlist_properties(shortlist_id=shortlist.id, extraction_included=True)
-            all_shortlisted_properties.extend(shortlist_properties)
+            shortlist_data = shortlist.to_dict()
+            properties = shortlist_data.get("properties", [])
+            property_ids.extend([prop["property_id"] for prop in properties])
+        
+        # Fetch properties and extractions in parallel
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            properties_future = executor.submit(self._fetch_properties, property_ids)
+            extractions_future = executor.submit(self._fetch_extractions, property_ids)
+            
+            properties = properties_future.result()
+            extractions = extractions_future.result()
+        
+        # Combine the data
+        all_shortlisted_properties = []
+        for shortlist in shortlists:
+            shortlist_data = shortlist.to_dict()
+            for prop in shortlist_data.get("properties", []):
+                property_id = prop["property_id"]
+                if property_id in properties:
+                    property_data = properties[property_id]
+                    prop.update({
+                        "address": property_data.get("address"),
+                        "postcode": property_data.get("postcode"),
+                        "price": property_data.get("price"),
+                        "num_bedrooms": property_data.get("num_bedrooms"),
+                        "stations": property_data.get("stations")
+                    })
+                
+                if property_id in extractions:
+                    prop.update(extractions[property_id].get("results", {}))
+                
+                all_shortlisted_properties.append(prop)
+        
         return all_shortlisted_properties
 
     def fetch_user_details_by_email(self, email) -> Dict:
@@ -198,5 +284,5 @@ class FireStore:
 if __name__ == '__main__':
     firestore = FireStore()
     # submissions = firestore.list_all_submissions()
-    firestore.fetch_user_details_by_email('hu.kefei@yahoo.co.uk')
+    # firestore.fetch_user_details_by_email('hu.kefei@yahoo.co.uk')
     firestore.get_shortlists_by_user_id("uUjGIe4uaSIK7m0skEwV")
