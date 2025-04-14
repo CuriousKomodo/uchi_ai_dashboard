@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 from custom_exceptions import NoUserFound
 from schema.firestore import Submission
-from connection.cache_utils import CacheManager
+from utils.cache_utils import CacheManager
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 credential_info_path = f"{dir_path}/firestore_key.json"
