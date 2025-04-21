@@ -75,7 +75,7 @@ def load_main_dashboard():
                 # Display image gallery on the left
                 with col1:
                     gallery_manager.display_image_gallery(prop)
-
+                    st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{prop['property_id']}")
                     if "stations" in prop:
                         st.write("**🚉 Nearest Stations:**")
                         for station in prop["stations"]:

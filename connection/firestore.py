@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from custom_exceptions import NoUserFound
 from schema.firestore import Submission
 from utils.cache_utils import CacheManager
+from utils.common_utils import save_json
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 credential_info_path = f"{dir_path}/firestore_key.json"
@@ -280,4 +281,5 @@ if __name__ == '__main__':
     firestore = FireStore()
     # submissions = firestore.list_all_submissions()
     # firestore.fetch_user_details_by_email('hu.kefei@yahoo.co.uk')
-    firestore.get_shortlists_by_user_id("uUjGIe4uaSIK7m0skEwV")
+    all_shortlisted_properties = firestore.get_shortlists_by_user_id("hIk6crfW5BncLCYK8fIR")
+    save_json(all_shortlisted_properties, "shortlist_new.json")
