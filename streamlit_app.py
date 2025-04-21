@@ -62,20 +62,21 @@ def load_main_dashboard():
         for prop in shortlist:
             st.markdown("---")  # Adds a separator between properties
             with st.container():
-                col1, col2 = st.columns([5, 1])
+                col1, col2, col3 = st.columns([5, 1, 1])
                 with col1:
-                    st.markdown(f"<h3>{prop['address']} - £{prop['price']}</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<h3>{prop['address']} - {prop['num_bedrooms']} bedrooms - £{prop['price']}</h3>", unsafe_allow_html=True)
                     st.markdown("<br>", unsafe_allow_html=True)
                 with col2:
                     if st.button(f"❤️ Save", key=f"save {prop['property_id']}"):
                         st.success("Property saved!")
-            
+                with col3:
+                    st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{prop['property_id']}")
+
             with st.container():
                 col1, col2 = st.columns([1, 2])
                 # Display image gallery on the left
                 with col1:
                     gallery_manager.display_image_gallery(prop)
-                    st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{prop['property_id']}")
                     if "stations" in prop:
                         st.write("**🚉 Nearest Stations:**")
                         for station in prop["stations"]:
@@ -93,7 +94,11 @@ def load_main_dashboard():
                             match_criteria_string += f" {key.replace('_', ' ').capitalize()} ✅  "
                     st.markdown(match_criteria_string, unsafe_allow_html=True)
 
-                    st.markdown("<h6>🚗Estimated commute to Liverpool Street = 50min</h6>", unsafe_allow_html=True)
+                    if prop["journey"] and prop["journey"].get("duration"):
+                        st.markdown(
+                            f"<h6>🚗Estimated commute to work: {prop['journey'].get('duration')} min </h6>",
+                            unsafe_allow_html=True
+                        )
 
                     with st.expander("🕵️Neighborhood intelligence", expanded=False):
                         st.markdown(
