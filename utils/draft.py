@@ -12,14 +12,25 @@ def draft_enquiry(
         customer_name: str,
         customer_intent: Optional[str] = ""
 ):
-    api_url = os.getenv("UCHI_API_URL")
+    api_url = f'{os.getenv("UCHI_API_URL")}/draft_email'
+
+    property_details_trimmed = {
+        "address": property_details["address"],
+        "postcode": property_details["postcode"],
+        "price": property_details["price"],
+        "num_bedrooms": property_details["num_bedrooms"],
+        "property_description_analysis": property_details["property_description_analysis"],
+    }
 
     try:
-        response = requests.post(api_url, json={
-            "customer_name": customer_name,
-            "property_details": property_details,
-            "customer_intent": customer_intent,
-        })
+        response = requests.post(
+            url=api_url,
+            json={
+                "customer_name": customer_name,
+                "property_details": property_details_trimmed,
+                "customer_intent": customer_intent,
+                }
+        )
         response.raise_for_status()  # Raise error if not 200
 
         draft_message = response.json().get("message", "Something went wrong")

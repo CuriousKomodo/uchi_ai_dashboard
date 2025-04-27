@@ -67,7 +67,9 @@ def load_main_dashboard():
             options=["Price: Low to High",
                      "Price: High to Low",
                      "Bedrooms: Most to Fewest",
-                     "Criteria Match: Most to Least"],
+                     "Commute time to work: Shortest to Longest",
+                     "Criteria Match: Most to Least"
+                     ],
             key="user_sort_order"
         )
         sort_by_chosen_option(sort_by, shortlist)
@@ -79,20 +81,23 @@ def load_main_dashboard():
         for prop in shortlist:
             st.markdown("---")  # Adds a separator between properties
             with st.container():
-                col1, col2, col3 = st.columns([5, 1, 1])
+                col1, col2, col3, col4 = st.columns([5, 1, 2, 2])
                 with col1:
-                    st.markdown(f"<h3>{prop['address']} - {prop['num_bedrooms']} bedrooms - £{prop['price']}</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<h3>{prop['address']}</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<h4>{prop['num_bedrooms']} bedrooms - £{prop['price']}</h4>", unsafe_allow_html=True)
                     st.markdown("<br>", unsafe_allow_html=True)
                 with col2:
                     if st.button(f"❤️ Save", key=f"save {prop['property_id']}"):
                         st.success("Property saved!")
-                    if st.button(f"️✉️ Draft my enquiry", key=f"enquire {prop['property_id']}"):
+
+                with col3:
+                    if st.button(f"️✉️ Draft enquiry", key=f"enquire {prop['property_id']}"):
                         draft_enquiry(
                             property_details=prop,
-                            customer_name="",
+                            customer_name=st.session_state.first_name,
                             customer_intent="want to book a viewing"
                         )
-                with col3:
+                with col4:
                     st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{prop['property_id']}")
 
             with st.container():

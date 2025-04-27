@@ -8,7 +8,7 @@ def sort_by_chosen_option(sort_by, shortlist):
     elif sort_by == "Bedrooms: Most to Fewest":
         shortlist.sort(key=lambda x: x.get("num_bedrooms", 0), reverse=True)
     elif sort_by == "Commute time to work: Shortest to Longest":
-        shortlist.sort(key=lambda x: x.get('journey', {"duration": 500}).get('duration'), reverse=True)
+        shortlist.sort(key=lambda x: x.get('journey', {"duration": 500}).get('duration'))
     # elif sort_by == "Criteria Match: Most to Least":
     #     shortlist.sort(key=criteria_match_count, reverse=True)
 

@@ -259,7 +259,11 @@ class FireStore:
                         "num_bedrooms": property_data.get("num_bedrooms"),
                         "stations": property_data.get("stations")
                     })
-                
+                    if property_data["property_details"].get("salesInfo"):
+                        prop.update(property_data["property_details"].get("salesInfo"))
+                    if property_data["property_details"]["floorplans"]:
+                        prop["floorplans"] = property_data["property_details"]["floorplans"]
+
                 if property_id in extractions:
                     prop.update(extractions[property_id].get("results", {}))
                 
