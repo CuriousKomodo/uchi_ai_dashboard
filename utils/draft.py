@@ -3,7 +3,9 @@ from typing import Dict, Optional
 
 import requests
 import streamlit as st
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def draft_enquiry(
         property_details: Dict,
