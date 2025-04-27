@@ -79,17 +79,17 @@ def load_main_dashboard():
     if shortlist:
         st.subheader("🔍 Sort and Filter Properties")
 
-        # sort_by = st.selectbox(
-        #     "Sort by",
-        #     options=["Price: Low to High",
-        #              "Price: High to Low",
-        #              "Bedrooms: Most to Fewest",
-        #              "Commute time to work: Shortest to Longest",
-        #              "Criteria Match: Most to Least"
-        #              ],
-        #     key="user_sort_order"
-        # )
-        # sort_by_chosen_option(sort_by, shortlist)
+        sort_by = st.selectbox(
+            "Sort by",
+            options=["Price: Low to High",
+                     "Price: High to Low",
+                     "Bedrooms: Most to Fewest",
+                     "Commute time to work: Shortest to Longest",
+                     "Criteria Match: Most to Least"
+                     ],
+            key="user_sort_order"
+        )
+        sort_by_chosen_option(sort_by, shortlist)
 
         # Initialize image gallery manager and pre-decode all images
         gallery_manager = ImageGalleryManager()
