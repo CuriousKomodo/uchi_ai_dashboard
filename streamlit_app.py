@@ -7,7 +7,8 @@ import streamlit as st
 
 from connection.firestore import FireStore
 from custom_exceptions import NoUserFound
-from utils.filter_utils import sort_by_chosen_option
+from utils.draft import draft_enquiry
+from utils.filter import sort_by_chosen_option
 from utils.image_gallery_manager import ImageGalleryManager
 
 # Constants for cache management
@@ -55,7 +56,7 @@ def load_main_dashboard():
     st.subheader("🏠 Recommended Properties")
 
     # Show loading indicator while fetching data
-    with st.spinner('Loading properties...'):
+    with st.spinner(f'Hello {st.session_state.first_name}. Loading properties for you...'):
         shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
 
     if shortlist:
@@ -85,6 +86,12 @@ def load_main_dashboard():
                 with col2:
                     if st.button(f"❤️ Save", key=f"save {prop['property_id']}"):
                         st.success("Property saved!")
+                    if st.button(f"️✉️ Draft my enquiry", key=f"enquire {prop['property_id']}"):
+                        draft_enquiry(
+                            property_details=prop,
+                            customer_name="",
+                            customer_intent="want to book a viewing"
+                        )
                 with col3:
                     st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{prop['property_id']}")
 
@@ -155,6 +162,7 @@ def login():
                 st.session_state.authenticated = True
                 st.session_state.email = email
                 st.session_state.user_id = user_details.get("user_id")
+                st.session_state.first_name = user_details.get("first_name")
                 st.rerun()
             else:
                 st.error("Invalid password")
@@ -167,6 +175,7 @@ def logout():
     st.session_state.authenticated = False
     st.session_state.email = None
     st.session_state.user_id = None
+    st.session_state.first_name = None
     st.rerun()
 
 # App Content
