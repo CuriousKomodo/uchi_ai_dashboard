@@ -7,6 +7,7 @@ import streamlit as st
 
 from connection.firestore import FireStore
 from custom_exceptions import NoUserFound
+from utils.filter_utils import sort_by_chosen_option
 from utils.image_gallery_manager import ImageGalleryManager
 
 # Constants for cache management
@@ -21,6 +22,8 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "last_access_time" not in st.session_state:
     st.session_state.last_access_time = {}
+if "user_sort_order" not in st.session_state:
+    st.session_state.user_sort_order = ""
 
 def cleanup_old_caches():
     """Clean up old caches when we exceed the threshold."""
@@ -44,6 +47,7 @@ def update_cache_access_time(property_id: str):
     """Update the last access time for a property's cache."""
     st.session_state.last_access_time[property_id] = time.time()
 
+
 def load_main_dashboard():
     st.title("🏡 Uchi: AI-Powered Real Estate Assistant")
 
@@ -55,6 +59,18 @@ def load_main_dashboard():
         shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
 
     if shortlist:
+        st.subheader("🔍 Sort and Filter Properties")
+
+        sort_by = st.selectbox(
+            "Sort by",
+            options=["Price: Low to High",
+                     "Price: High to Low",
+                     "Bedrooms: Most to Fewest",
+                     "Criteria Match: Most to Least"],
+            key="user_sort_order"
+        )
+        sort_by_chosen_option(sort_by, shortlist)
+
         # Initialize image gallery manager and pre-decode all images
         gallery_manager = ImageGalleryManager()
         gallery_manager.pre_decode_images(shortlist)
@@ -99,15 +115,17 @@ def load_main_dashboard():
                             f"<h6>🚗Estimated commute to work: {prop['journey'].get('duration')} min </h6>",
                             unsafe_allow_html=True
                         )
+                    if prop.get('deprivation') and prop["deprivation"] > 0:
+                        st.markdown(f"<h6>% households with any deprivation: {prop.get('deprivation')}% <h6>",
+                                    unsafe_allow_html=True)
+                        if prop['deprivation'] < 20:
+                            st.markdown(
+                                "⭐Relatively wealthy area, i.e. fewer than 1 in 5 residents are income‑deprived.")
 
-                    with st.expander("🕵️Neighborhood intelligence", expanded=False):
+                    with st.expander("🏞️🧘Places within 1km which might be relevant", expanded=False):
                         st.markdown(
                             "<div style='min-width: 500px;'>", unsafe_allow_html=True
                         )
-                        if prop.get('deprivation'):
-                            st.markdown(f"<h6>% households with any deprivation: {prop.get('deprivation')}% <h6>", unsafe_allow_html=True)
-
-                        st.write("🏞️🧘Interesting places to visit within 1km")
                         for place in prop.get("places_of_interest", []):
                             if place.get("rating"):
                                 st.write(f"- {place['name']} (⭐ {place['rating']})")
