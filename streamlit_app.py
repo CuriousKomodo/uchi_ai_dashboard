@@ -1,7 +1,7 @@
 import base64
 import json
 import time
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import streamlit as st
 
@@ -13,7 +13,7 @@ from utils.image_gallery_manager import ImageGalleryManager
 
 # Constants for cache management
 MAX_CACHED_PROPERTIES = 10  # Maximum number of properties to cache
-CACHE_CLEANUP_THRESHOLD = 15  # Cleanup when this many properties are cached
+CACHE_CLEANUP_THRESHOLD = 100  # Cleanup when this many properties are cached
 
 firestore = FireStore(credential_info=st.secrets["firestore_credentials"])
 st.set_page_config(page_title="AI-Powered Real Estate Assistant", layout="wide")
@@ -48,6 +48,23 @@ def update_cache_access_time(property_id: str):
     """Update the last access time for a property's cache."""
     st.session_state.last_access_time[property_id] = time.time()
 
+def on_draft_enquiry(
+        property_id: str,
+        property_details: Dict,
+        customer_name: str,
+        customer_intent: Optional[str] = ""
+):
+    expander_key = f"expander_{property_id}"
+    message = draft_enquiry(
+        property_details=property_details,
+        customer_name=customer_name,
+        customer_intent=customer_intent,
+    )
+
+    # store your draft and expand flag in session_state
+    st.session_state[f"draft_msg_{property_id}"] = message
+    st.session_state[expander_key] = True
+
 
 def load_main_dashboard():
     st.title("🏡 Uchi: AI-Powered Real Estate Assistant")
@@ -62,17 +79,17 @@ def load_main_dashboard():
     if shortlist:
         st.subheader("🔍 Sort and Filter Properties")
 
-        sort_by = st.selectbox(
-            "Sort by",
-            options=["Price: Low to High",
-                     "Price: High to Low",
-                     "Bedrooms: Most to Fewest",
-                     "Commute time to work: Shortest to Longest",
-                     "Criteria Match: Most to Least"
-                     ],
-            key="user_sort_order"
-        )
-        sort_by_chosen_option(sort_by, shortlist)
+        # sort_by = st.selectbox(
+        #     "Sort by",
+        #     options=["Price: Low to High",
+        #              "Price: High to Low",
+        #              "Bedrooms: Most to Fewest",
+        #              "Commute time to work: Shortest to Longest",
+        #              "Criteria Match: Most to Least"
+        #              ],
+        #     key="user_sort_order"
+        # )
+        # sort_by_chosen_option(sort_by, shortlist)
 
         # Initialize image gallery manager and pre-decode all images
         gallery_manager = ImageGalleryManager()
@@ -91,20 +108,45 @@ def load_main_dashboard():
                         st.success("Property saved!")
 
                 with col3:
-                    if st.button(f"️✉️ Draft enquiry", key=f"enquire {prop['property_id']}"):
-                        draft_enquiry(
-                            property_details=prop,
-                            customer_name=st.session_state.first_name,
-                            customer_intent="want to book a viewing"
-                        )
-                with col4:
-                    st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{prop['property_id']}")
+                    # Unique key for this property's enquiry
+                    enquiry_key = f"enquire_{prop['property_id']}"
 
+                    # If the button is clicked, store the draft and open the expander
+                    if st.button(
+                            "️✉️ Draft enquiry",
+                            key=enquiry_key,
+                            on_click=on_draft_enquiry,
+                            args=(prop['property_id'], prop, st.session_state.first_name, "general enquiry")
+                    ):
+                        pass
+
+                with col4:
+                    if st.session_state.get(f"draft_msg_{prop['property_id']}", False):
+                        with st.popover("📝Review your draft"):
+                            st.markdown(
+                                f"<h5>Subject: enquiring about property at {prop['address']}</h3>",
+                                unsafe_allow_html=True
+                            )
+                            st.text_area(
+                                f"Feel free to edit the content.",
+                                value=st.session_state.get(f"draft_msg_{prop['property_id']}"),
+                                height=300,
+                                key=f"textarea_{prop['property_id']}"
+                            )
             with st.container():
                 col1, col2 = st.columns([1, 2])
                 # Display image gallery on the left
                 with col1:
                     gallery_manager.display_image_gallery(prop)
+
+                    col11, col12 = st.columns([1,1])
+                    with col11:
+                        st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{prop['property_id']}")
+                    with col12:
+                        if prop.get('floorplans') and isinstance(prop["floorplans"], list):
+                            floorplan_url = prop["floorplans"][0].get("url")
+                            st.link_button("Floorplan", url=floorplan_url)
+
                     if "stations" in prop:
                         st.write("**🚉 Nearest Stations:**")
                         for station in prop["stations"]:

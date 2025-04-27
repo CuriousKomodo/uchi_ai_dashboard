@@ -1,8 +1,7 @@
 import os
 from typing import Dict, Optional
-
-import requests
 import streamlit as st
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,36 +13,62 @@ def draft_enquiry(
 ):
     api_url = f'{os.getenv("UCHI_API_URL")}/draft_email'
 
-    property_details_trimmed = {
-        "address": property_details["address"],
-        "postcode": property_details["postcode"],
-        "price": property_details["price"],
-        "num_bedrooms": property_details["num_bedrooms"],
-        "property_description_analysis": property_details["property_description_analysis"],
-    }
+    fields_to_exclude = ["journey", "matched_criteria", "places_of_interest", "image_analysis", "score", "stations", "extraction_id", "compressed_images"]
+    property_details_trimmed = {k:v for k, v in property_details.items() if k not in fields_to_exclude}
 
+    print(property_details_trimmed)
     try:
         response = requests.post(
             url=api_url,
             json={
                 "customer_name": customer_name,
                 "property_details": property_details_trimmed,
-                "customer_intent": customer_intent,
+                "customer_intention": customer_intent,
                 }
         )
-        response.raise_for_status()  # Raise error if not 200
-
-        draft_message = response.json().get("message", "Something went wrong")
-
-        # Open a modal popup with editable text area
-        with st.modal("Edit your enquiry"):
-            edited_message = st.text_area(
-                "Your draft:",
-                value=draft_message,
-                height=300
-            )
-            # if st.button("Submit Enquiry"):
-            #     st.success("Your enquiry has been submitted!")
+        if response.status_code == 200:
+            return response.json()["message"]
 
     except requests.RequestException as e:
-        st.error(f"Failed to get draft message: {e}")
+        default_message = f"Hi, \n I am interested in this property and would like to request for a viewing. Best, \n{customer_name}"
+        return default_message
+
+
+def on_draft_enquiry(
+        property_id: str,
+        property_details: Dict,
+        customer_name: str,
+        customer_intent: Optional[str] = ""
+):
+    expander_key = f"expander_{property_id}"
+    message = draft_enquiry(
+        property_details=property_details,
+        customer_name=customer_name,
+        customer_intent=customer_intent,
+    )
+
+    # store your draft and expand flag in session_state
+    st.session_state[f"draft_msg_{property_id}"] = message
+    st.session_state[expander_key] = True
+
+    # Show the expander if the flag is set in session state
+    if st.session_state.get(expander_key, False):
+        print("Expanded")
+        with st.expander("Edit your enquiry", expanded=True):
+            edited_message = st.text_area(
+                message,
+                value=st.session_state.get(f"draft_msg_{property_id}", ""),
+                height=300,
+                key=f"textarea_{property_id}"
+            )
+            # Optionally, add a submit button here
+            # if st.button("Submit Enquiry", key=f"submit_{prop['property_id']}"):
+            #     st.success("Your enquiry has been submitted!")
+
+
+if __name__ == "__main__":
+    draft_enquiry(
+        property_details={},
+        customer_name="Kefei",
+        customer_intent="I want to book viewing",
+    )

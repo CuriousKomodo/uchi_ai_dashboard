@@ -260,9 +260,12 @@ class FireStore:
                         "stations": property_data.get("stations")
                     })
                     if property_data["property_details"].get("salesInfo"):
+                        prop.update({"tenure_type": property_data["property_details"]["salesInfo"].get("tenureType")})
                         prop.update(property_data["property_details"].get("salesInfo"))
-                    if property_data["property_details"]["floorplans"]:
+                    if property_data["property_details"].get("floorplans"):  # TODO: display link on dash
                         prop["floorplans"] = property_data["property_details"]["floorplans"]
+                    if property_data["property_details"].get("epcs"):
+                        prop["epcs"] = property_data["property_details"]["epcs"]
 
                 if property_id in extractions:
                     prop.update(extractions[property_id].get("results", {}))
