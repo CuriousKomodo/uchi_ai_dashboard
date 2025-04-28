@@ -7,7 +7,6 @@ import streamlit as st
 
 from connection.firestore import FireStore
 from custom_exceptions import NoUserFound
-from live_chat import control_pop_up_live_chat, live_chat
 from utils.draft import draft_enquiry
 from utils.filter import sort_by_chosen_option
 from utils.image_gallery_manager import ImageGalleryManager
