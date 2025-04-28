@@ -7,6 +7,7 @@ import streamlit as st
 
 from connection.firestore import FireStore
 from custom_exceptions import NoUserFound
+from live_chat import control_pop_up_live_chat, live_chat
 from utils.draft import draft_enquiry
 from utils.filter import sort_by_chosen_option
 from utils.image_gallery_manager import ImageGalleryManager
@@ -25,6 +26,8 @@ if "last_access_time" not in st.session_state:
     st.session_state.last_access_time = {}
 if "user_sort_order" not in st.session_state:
     st.session_state.user_sort_order = ""
+if "chat_flag" not in st.session_state:
+    st.session_state.chat_flag = None
 
 def cleanup_old_caches():
     """Clean up old caches when we exceed the threshold."""
@@ -67,6 +70,7 @@ def on_draft_enquiry(
 
 
 def load_main_dashboard():
+
     st.title("🏡 Uchi: AI-Powered Real Estate Assistant")
 
     # Fetch properties from Firestore
@@ -77,8 +81,6 @@ def load_main_dashboard():
         shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
 
     if shortlist:
-        st.subheader("🔍 Sort and Filter Properties")
-
         sort_by = st.selectbox(
             "Sort by",
             options=["Price: Low to High",
@@ -134,15 +136,24 @@ def load_main_dashboard():
                                 key=f"textarea_{prop['property_id']}"
                             )
             with st.container():
-                col1, col2 = st.columns([1, 2])
+                col1, col2 = st.columns([3, 5])
                 # Display image gallery on the left
                 with col1:
                     gallery_manager.display_image_gallery(prop)
 
-                    col11, col12 = st.columns([1,1])
+                    col11, col12, col13 = st.columns([1,1,1])
                     with col11:
                         st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{prop['property_id']}")
                     with col12:
+                        chat_url = (
+                            f"{st.secrets['UCHI_LIVE_CHAT_URL']}?"
+                            f"property_id={prop['property_id']}"
+                        )  # will require security check in the future
+                        st.link_button(
+                            "🤖Ask AI",
+                            url=chat_url
+                        )
+                    with col13:
                         if prop.get('floorplans') and isinstance(prop["floorplans"], list):
                             floorplan_url = prop["floorplans"][0].get("url")
                             st.link_button("Floorplan", url=floorplan_url)
@@ -215,7 +226,6 @@ def login():
                 st.error("Invalid password")
         except NoUserFound:
             st.error("Email is not found. Please feel free to register.")
-
 
 # Logout Function
 def logout():
