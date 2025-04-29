@@ -12,14 +12,20 @@ def get_property_context() -> Dict:
         "bedrooms": query_params.get("bedrooms", "")
     }
 
-def get_chat_response(messages: list, property_context: Dict) -> str:
+def get_chat_response(
+        messages: list,
+        property_details: Dict,
+        customer_name: str
+) -> str:
     """Get response from the chat API."""
     try:
         response = requests.post(
             f"{st.secrets['UCHI_API_URL']}/chat",
             json={
-                "messages": messages,
-                "property_context": property_context
+                "customer_message": messages[-1],
+                "property_details": property_details,
+                "chat_history": messages,
+                "customer_name": customer_name
             }
         )
         if response.status_code == 200:
@@ -32,12 +38,12 @@ def get_chat_response(messages: list, property_context: Dict) -> str:
 
 def show_chat_interface():
     """Show the chat interface."""
-    property_context = get_property_context()
+    property_details = get_property_context()
     
     # Display property info
     st.title("🤖 AI Property Assistant")
-    st.markdown(f"### {property_context['address']}")
-    st.markdown(f"**Price:** £{property_context['price']} | **Bedrooms:** {property_context['bedrooms']}")
+    st.markdown(f"### {property_details['address']}")
+    st.markdown(f"**Price:** £{property_details['price']} | **Bedrooms:** {property_details['bedrooms']}")
     st.markdown("---")
 
     # Initialize chat history
@@ -45,7 +51,7 @@ def show_chat_interface():
         st.session_state.messages = [
             {
                 "role": "assistant",
-                "content": f"Hello! I'm your AI assistant for the property at {property_context['address']}. How can I help you today?"
+                "content": f"Hello! I'm your AI assistant for the property at {property_details['address']}. How can I help you today?"
             }
         ]
 
@@ -60,7 +66,11 @@ def show_chat_interface():
         with st.chat_message("user"):
             st.markdown(prompt)
         with st.chat_message("assistant"):
-            response = get_chat_response(st.session_state.messages, property_context)
+            response = get_chat_response(
+                customer_name=st.session_state.first_name,
+                property_details=property_details,
+                messages=st.session_state.messages,
+            )
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
 
