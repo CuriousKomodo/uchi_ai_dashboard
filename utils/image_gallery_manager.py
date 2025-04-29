@@ -26,7 +26,7 @@ class ImageGalleryManager:
                     decoded_images = []
                     for img in images:
                         try:
-                            decoded = base64.b64decode(img.get('url', ''))
+                            decoded = base64.b64decode(img)
                             decoded_images.append(decoded)
                         except Exception as e:
                             print(f"Error decoding image for property {property_id}: {str(e)}")
@@ -77,11 +77,11 @@ class ImageGalleryManager:
         if property_id in st.session_state.decoded_images:
             images = st.session_state.decoded_images[property_id]
         else:
-            images = prop.get('property_details', {}).get('images', [])
+            images = prop.get('compressed_images', [])
             decoded_images = []
             for img in images:
                 try:
-                    decoded = base64.b64decode(img.get('url', ''))
+                    decoded = base64.b64decode(img)
                     decoded_images.append(decoded)
                 except Exception as e:
                     print(f"Error decoding image for property {property_id}: {str(e)}")
