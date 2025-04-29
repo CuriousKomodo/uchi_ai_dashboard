@@ -4,6 +4,7 @@ import time
 from typing import Dict, List, Optional
 
 import streamlit as st
+import requests
 
 from connection.firestore import FireStore
 from custom_exceptions import NoUserFound
@@ -144,13 +145,17 @@ def load_main_dashboard():
                     with col11:
                         st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{prop['property_id']}")
                     with col12:
-                        chat_url = (
-                            f"{st.secrets['UCHI_LIVE_CHAT_URL']}?"
-                            f"property_id={prop['property_id']}"
-                        )  # will require security check in the future
+                        # Construct the path-based URL
+                        chat_path = (
+                            f"/ask_ai/"
+                            f"{prop['property_id']}/"
+                            f"{requests.utils.quote(prop['address'])}/"
+                            f"{prop['price']}/"
+                            f"{prop['num_bedrooms']}"
+                        )
                         st.link_button(
                             "🤖Ask AI",
-                            url=chat_url
+                            url=chat_path
                         )
                     with col13:
                         if prop.get('floorplans') and isinstance(prop["floorplans"], list):
