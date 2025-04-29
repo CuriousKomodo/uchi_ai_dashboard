@@ -16,7 +16,6 @@ def draft_enquiry(
     fields_to_exclude = ["journey", "matched_criteria", "places_of_interest", "image_analysis", "score", "stations", "extraction_id", "compressed_images"]
     property_details_trimmed = {k:v for k, v in property_details.items() if k not in fields_to_exclude}
 
-    print(property_details_trimmed)
     try:
         response = requests.post(
             url=api_url,
@@ -53,7 +52,6 @@ def on_draft_enquiry(
 
     # Show the expander if the flag is set in session state
     if st.session_state.get(expander_key, False):
-        print("Expanded")
         with st.expander("Edit your enquiry", expanded=True):
             edited_message = st.text_area(
                 message,

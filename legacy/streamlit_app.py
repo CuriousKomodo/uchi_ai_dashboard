@@ -179,7 +179,7 @@ def load_main_dashboard():
                             match_criteria_string += f" {key.replace('_', ' ').capitalize()} ✅  "
                     st.markdown(match_criteria_string, unsafe_allow_html=True)
 
-                    if prop["journey"] and prop["journey"].get("duration"):
+                    if prop.get("journey") and prop["journey"].get("duration"):
                         st.markdown(
                             f"<h6>🚗Estimated commute to work: {prop['journey'].get('duration')} min </h6>",
                             unsafe_allow_html=True

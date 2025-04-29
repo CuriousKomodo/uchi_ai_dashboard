@@ -262,6 +262,7 @@ class FireStore:
                     property_data = properties[property_id]
                     if property_id in extractions:
                         property_data["extraction"] = extractions[property_id]
+                    property_data["property_id"] = property_id
                     all_shortlisted_properties.append(property_data)
         
         # Cache the result
