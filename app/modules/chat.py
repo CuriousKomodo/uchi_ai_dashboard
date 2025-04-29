@@ -24,7 +24,7 @@ def get_chat_response(
             json={
                 "customer_message": messages[-1].get("content"),
                 "property_details": property_details,
-                "chat_history": [],
+                "chat_history": [],  # fixme: need to figure out the best format
                 "customer_name": customer_name
             }
         )
