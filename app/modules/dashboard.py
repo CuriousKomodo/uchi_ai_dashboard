@@ -124,4 +124,43 @@ def show_dashboard(firestore: FireStore):
                     with col13:
                         if prop.get('floorplans') and isinstance(prop["floorplans"], list):
                             floorplan_url = prop["floorplans"][0].get("url")
-                            st.link_button("Floorplan", url=floorplan_url) 
+                            st.link_button("Floorplan", url=floorplan_url)
+
+                with col2:
+                    st.write("<h5>🏠Matched property criteria: </h5>", unsafe_allow_html=True)
+                    match_criteria = prop.get("match_output", {})
+                    match_criteria_additional = prop.get("matched_criteria", {})
+                    match_criteria.update({criteria: True for criteria in match_criteria_additional})
+                    match_criteria_string = ""  # widgets with colors
+                    for key, value in match_criteria.items():
+                        if isinstance(value, bool) and value:
+                            match_criteria_string += f" {key.replace('_', ' ').capitalize()} ✅  "
+                    st.markdown(match_criteria_string, unsafe_allow_html=True)
+
+                    if "stations" in prop:
+                            st.write("**🚉 Nearest Stations:**")
+                            for station in prop["stations"]:
+                                st.write(f"- {station['station']} ({station['distance']} miles)")
+
+                    if prop["journey"] and prop["journey"].get("duration"):
+                        st.markdown(
+                            f"<h6>🚗Estimated commute to work: {prop['journey'].get('duration')} min </h6>",
+                            unsafe_allow_html=True
+                        )
+                    if prop.get('deprivation') and prop["deprivation"] > 0:
+                        st.markdown(f"<h6>% households with any deprivation: {prop.get('deprivation')}% <h6>",
+                                    unsafe_allow_html=True)
+                        if prop['deprivation'] < 20:
+                            st.markdown(
+                                "⭐Relatively wealthy area, i.e. fewer than 1 in 5 residents are income‑deprived.")
+
+                    with st.expander("🏞️🧘Places within 1km which might be relevant", expanded=False):
+                        st.markdown(
+                            "<div style='min-width: 500px;'>", unsafe_allow_html=True
+                        )
+                        for place in prop.get("places_of_interest", []):
+                            if place.get("rating"):
+                                st.write(f"- {place['name']} (⭐ {place['rating']})")
+                            else:
+                                st.write(f"- {place['name']} ")
+                        st.markdown("</div>", unsafe_allow_html=True)
