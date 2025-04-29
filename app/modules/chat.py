@@ -22,9 +22,9 @@ def get_chat_response(
         response = requests.post(
             f"{st.secrets['UCHI_API_URL']}/chat",
             json={
-                "customer_message": messages[-1],
+                "customer_message": messages[-1].get("content"),
                 "property_details": property_details,
-                "chat_history": messages,
+                "chat_history": [],
                 "customer_name": customer_name
             }
         )

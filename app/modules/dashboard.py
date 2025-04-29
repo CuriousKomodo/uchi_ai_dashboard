@@ -70,9 +70,12 @@ def show_dashboard(firestore: FireStore):
                      "Commute time to work: Shortest to Longest",
                      "Criteria Match: Most to Least"
                      ],
+            placeholder="Price: Low to High",
             key="user_sort_order"
         )
-        sort_by_chosen_option(sort_by, shortlist)
+        if not sort_by:
+            sort_by_chosen_option("Price: Low to High", shortlist)
+        sort_by_chosen_option(st.session_state.user_sort_order, shortlist)
 
         # Initialize image gallery manager with cached images
         gallery_manager = ImageGalleryManager()
