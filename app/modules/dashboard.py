@@ -49,6 +49,14 @@ def show_dashboard(firestore: FireStore):
         login(firestore)
         return
 
+    # Initialize session state for image caching
+    if "decoded_images" not in st.session_state:
+        st.session_state.decoded_images = {}
+    if "image_cache_timestamps" not in st.session_state:
+        st.session_state.image_cache_timestamps = {}
+    if "last_property_ids" not in st.session_state:
+        st.session_state.last_property_ids = set()
+
     # Fetch properties from Firestore
     with st.spinner(f'Hello {st.session_state.first_name}. Loading properties for you...'):
         shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
@@ -66,9 +74,17 @@ def show_dashboard(firestore: FireStore):
         )
         sort_by_chosen_option(sort_by, shortlist)
 
-        # Initialize image gallery manager
+        # Initialize image gallery manager with cached images
         gallery_manager = ImageGalleryManager()
-        gallery_manager.pre_decode_images(shortlist)
+        
+        # Only pre-decode new images
+        current_property_ids = {prop['property_id'] for prop in shortlist}
+        new_property_ids = current_property_ids - st.session_state.last_property_ids
+        
+        if new_property_ids:
+            new_properties = [prop for prop in shortlist if prop['property_id'] in new_property_ids]
+            gallery_manager.pre_decode_images(new_properties)
+            st.session_state.last_property_ids = current_property_ids
 
         for prop in shortlist:
             st.markdown("---")
@@ -137,16 +153,19 @@ def show_dashboard(firestore: FireStore):
                             match_criteria_string += f" {key.replace('_', ' ').capitalize()} ✅  "
                     st.markdown(match_criteria_string, unsafe_allow_html=True)
 
-                    if "stations" in prop:
-                            st.write("**🚉 Nearest Stations:**")
-                            for station in prop["stations"]:
-                                st.write(f"- {station['station']} ({station['distance']} miles)")
-
+                    st.markdown("<br>", unsafe_allow_html=True)
                     if prop["journey"] and prop["journey"].get("duration"):
                         st.markdown(
                             f"<h6>🚗Estimated commute to work: {prop['journey'].get('duration')} min </h6>",
                             unsafe_allow_html=True
                         )
+
+                    if "stations" in prop:
+                            st.write("**🚉 Nearest Stations:**")
+                            for station in prop["stations"]:
+                                st.write(f"- {station['station']} ({station['distance']} miles)")
+
+                    st.markdown("<br>", unsafe_allow_html=True)
                     if prop.get('deprivation') and prop["deprivation"] > 0:
                         st.markdown(f"<h6>% households with any deprivation: {prop.get('deprivation')}% <h6>",
                                     unsafe_allow_html=True)

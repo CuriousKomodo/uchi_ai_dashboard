@@ -6,10 +6,10 @@ def get_property_context() -> Dict:
     """Get property context from URL parameters."""
     query_params = st.query_params
     return {
-        "property_id": query_params.get("property_id", [""])[0],
-        "address": query_params.get("address", [""])[0],
-        "price": query_params.get("price", [""])[0],
-        "bedrooms": query_params.get("bedrooms", [""])[0]
+        "property_id": query_params.get("property_id", ""),
+        "address": query_params.get("address", ""),
+        "price": query_params.get("price", ""),
+        "bedrooms": query_params.get("bedrooms", "")
     }
 
 def get_chat_response(messages: list, property_context: Dict) -> str:
