@@ -260,10 +260,23 @@ class FireStore:
                 property_id = prop["property_id"]
                 if property_id in properties:
                     property_data = properties[property_id]
-                    if property_id in extractions:
-                        property_data["extraction"] = extractions[property_id]
-                    property_data["property_id"] = property_id
-                    all_shortlisted_properties.append(property_data)
+                    prop.update({
+                        "address": property_data.get("address"),
+                        "postcode": property_data.get("postcode"),
+                        "price": property_data.get("price"),
+                        "num_bedrooms": property_data.get("num_bedrooms"),
+                        "stations": property_data.get("stations")
+                    })
+                    if property_data["property_details"].get("salesInfo"):
+                        prop.update({"tenure_type": property_data["property_details"].get("salesInfo").get("tenureType")})
+                        prop.update(property_data["property_details"].get("salesInfo"))
+                    if property_data["property_details"].get("floorplans"):
+                        prop["floorplans"] = property_data["property_details"]["floorplans"]
+
+                if property_id in extractions:
+                    prop.update(extractions[property_id].get("results", {}))
+
+                all_shortlisted_properties.append(prop)
         
         # Cache the result
         self.cache_manager.get_property_cache()[cache_key] = all_shortlisted_properties

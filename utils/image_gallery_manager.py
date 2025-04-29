@@ -21,7 +21,7 @@ class ImageGalleryManager:
 
             # Only decode if not already in cache
             if property_id not in st.session_state.decoded_images:
-                images = prop.get('property_details', {}).get('images', [])
+                images = prop.get('property_details', {}).get('compressed_images', [])
                 if images:
                     decoded_images = []
                     for img in images:
