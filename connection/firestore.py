@@ -223,6 +223,14 @@ class FireStore:
         })
 
     def get_shortlists_by_user_id(self, user_id: str) -> List[Dict]:
+        # Check cache first
+        cache_key = f"shortlist_{user_id}"
+        if cache_key in self.cache_manager.get_property_cache():
+            self.cache_manager._update_cache_stats('property', hit=True)
+            return self.cache_manager.get_property_cache()[cache_key]
+        
+        self.cache_manager._update_cache_stats('property', hit=False)
+        
         # Query for shortlists
         shortlists = self.shortlist_collection.where("user_id", "==", user_id).get()
         
@@ -252,26 +260,12 @@ class FireStore:
                 property_id = prop["property_id"]
                 if property_id in properties:
                     property_data = properties[property_id]
-                    prop.update({
-                        "address": property_data.get("address"),
-                        "postcode": property_data.get("postcode"),
-                        "price": property_data.get("price"),
-                        "num_bedrooms": property_data.get("num_bedrooms"),
-                        "stations": property_data.get("stations")
-                    })
-                    if property_data["property_details"].get("salesInfo"):
-                        prop.update({"tenure_type": property_data["property_details"]["salesInfo"].get("tenureType")})
-                        prop.update(property_data["property_details"].get("salesInfo"))
-                    if property_data["property_details"].get("floorplans"):  # TODO: display link on dash
-                        prop["floorplans"] = property_data["property_details"]["floorplans"]
-                    if property_data["property_details"].get("epcs"):
-                        prop["epcs"] = property_data["property_details"]["epcs"]
-
-                if property_id in extractions:
-                    prop.update(extractions[property_id].get("results", {}))
-                
-                all_shortlisted_properties.append(prop)
+                    if property_id in extractions:
+                        property_data["extraction"] = extractions[property_id]
+                    all_shortlisted_properties.append(property_data)
         
+        # Cache the result
+        self.cache_manager.get_property_cache()[cache_key] = all_shortlisted_properties
         return all_shortlisted_properties
 
     def fetch_user_details_by_email(self, email) -> Dict:
