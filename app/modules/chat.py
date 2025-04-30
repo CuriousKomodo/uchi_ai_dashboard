@@ -29,7 +29,7 @@ def get_chat_response(
             }
         )
         if response.status_code == 200:
-            return response.json()["response"]
+            return response.json()["message"]
         else:
             return "Sorry, I'm having trouble connecting to the chat service. Please try again later."
     except Exception as e:
