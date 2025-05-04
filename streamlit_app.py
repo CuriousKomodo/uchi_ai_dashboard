@@ -44,14 +44,19 @@ def main():
 
     # Show view selector at the top only if user is authenticated
     if st.session_state.authenticated:
-        col1, col2 = st.columns([1, 5])
+        st.markdown("### Select View")
+        col1, col2 = st.columns(2)
         with col1:
-            if st.button("🏠 Dashboard View"):
+            if st.button("🏠 Dashboard View", use_container_width=True, 
+                        type="primary" if st.session_state.current_view == "dashboard" else "secondary"):
                 st.query_params.update(path="dashboard")
                 st.rerun()
-            if st.button("🏫 School-centric View"):
+        with col2:
+            if st.button("🏫 School-centric View", use_container_width=True,
+                        type="primary" if st.session_state.current_view == "school" else "secondary"):
                 st.query_params.update(path="school")
                 st.rerun()
+        st.markdown("---")  # Add a separator line
 
     # Show the appropriate view
     if st.session_state.current_view == "school":

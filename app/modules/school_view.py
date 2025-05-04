@@ -56,14 +56,15 @@ def get_schools_locations(filters) -> List[Dict]:
     school_locations = []
     for _, school in schools.iterrows():
         info = f"{school['name']}, {school['gender']}, {school['min_age']}-{school['max_age']} years, "
-        info += f"{school['state_or_independent']}, {school['rating']}"
+        info += f"{school['state_or_independent']}, {school['rating']} ⭐"
         
         school_locations.append({
             "name": school['name'],
             "lat": school['lat'],
             "lon": school['lng'],
             "school": True,
-            "info": info
+            "info": info,
+            "url": school.get('url', '')  # Add URL to the school data
         })
     
     return school_locations
@@ -101,7 +102,8 @@ def get_property_coordinates(shortlist: List[Dict]) -> List[Dict]:
             "lat": latitude,
             "lon": longitude,
             "school": False,
-            "info": info
+            "info": info,
+            "url": prop.get('url', '')  # Add URL to the property data
         })
     
     return property_locations
@@ -188,20 +190,38 @@ def school_map_view_with_properties(filters, shortlist):
     # Add school markers
     for loc in school_locations:
         icon = folium.Icon(color="red", icon="school", prefix="fa")
+        # Create popup with link
+        popup_html = f"""
+            <div style='font-family: Arial, sans-serif;'>
+                <h4>{loc["name"]}</h4>
+                <p>{loc["info"]}</p>
+                {f'<a href="{loc["url"]}" target="_blank" style="background-color: #4CAF50; color: white; padding: 8px 16px; text-align: center; text-decoration: none; display: inline-block; border-radius: 4px;">View School</a>' if loc["url"] else ''}
+            </div>
+        """
+        popup = folium.Popup(popup_html, max_width=300)
         folium.Marker(
             location=[loc["lat"], loc["lon"]],
             tooltip=loc["name"],
-            popup=loc["info"],
+            popup=popup,
             icon=icon
         ).add_to(m)
 
     # Add property markers
     for loc in property_locations:
         icon = folium.Icon(color="blue", icon="home", prefix="fa")
+        # Create popup with link
+        popup_html = f"""
+            <div style='font-family: Arial, sans-serif;'>
+                <h4>{loc["name"]}</h4>
+                <p>{loc["info"]}</p>
+                {f'<a href="{loc["url"]}" target="_blank" style="background-color: #2196F3; color: white; padding: 8px 16px; text-align: center; text-decoration: none; display: inline-block; border-radius: 4px;">View Property</a>' if loc["url"] else ''}
+            </div>
+        """
+        popup = folium.Popup(popup_html, max_width=300)
         folium.Marker(
             location=[loc["lat"], loc["lon"]],
             tooltip=loc["name"],
-            popup=loc["info"],
+            popup=popup,
             icon=icon
         ).add_to(m)
 
@@ -220,7 +240,7 @@ def school_map_view_with_properties(filters, shortlist):
         st.metric("Properties", len(property_locations))
     
     # Display the map
-    st_folium(m, width=700, height=500)
+    st_folium(m, width=1000, height=800)
 
 
 if __name__ == '__main__':
