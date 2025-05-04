@@ -260,12 +260,21 @@ class FireStore:
                 property_id = prop["property_id"]
                 if property_id in properties:
                     property_data = properties[property_id]
+
+                    latitude = None
+                    longitude = None
+                    if property_data.get("property_details") and property_data["property_details"].get("location") and isinstance(property_data["property_details"]["location"], dict):
+                        latitude = property_data["property_details"]["location"].get("latitude")
+                        longitude = property_data["property_details"]["location"].get("longitude")
+
                     prop.update({
                         "address": property_data.get("address"),
                         "postcode": property_data.get("postcode"),
                         "price": property_data.get("price"),
                         "num_bedrooms": property_data.get("num_bedrooms"),
-                        "stations": property_data.get("stations")
+                        "stations": property_data.get("stations"),
+                        "latitude": latitude,
+                        "longitude": longitude,
                     })
                     if property_data["property_details"].get("salesInfo"):
                         prop.update({"tenure_type": property_data["property_details"].get("salesInfo").get("tenureType")})

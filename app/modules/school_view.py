@@ -34,33 +34,34 @@ def get_schools_locations(filters) -> List[Dict]:
     if not schools_file.exists():
         st.error(f"Schools data file not found at {schools_file}")
         return []
-    
+    print(filters)
     schools = pd.read_pickle(schools_file)
+    print(len(schools))
     
     # Apply filters
     if filters.get('gender'):
         schools = schools[schools['gender'] == filters['gender'].lower()]
     if filters.get('minimum_age'):
-        schools = schools[schools['minimum_age'] >= filters['minimum_age']]
+        schools = schools[schools['min_age'] >= filters['minimum_age']]
     if filters.get('maximum_age'):
-        schools = schools[schools['maximum_age'] <= filters['maximum_age']]
+        schools = schools[schools['max_age'] <= filters['maximum_age']]
     if filters.get('state_or_independent'):
         schools = schools[schools['state_or_independent'] == filters['state_or_independent'].lower()]
     if filters.get('is_special') is not None:
         schools = schools[schools['is_special'] == filters['is_special']]
     if filters.get('rating'):
-        schools = schools[schools['rating'] == filters['rating'].lower()]
+        schools = schools[schools['rating'] == filters['rating']]
     
     # Format the output
     school_locations = []
     for _, school in schools.iterrows():
-        info = f"{school['name']}, {school['gender']}, {school['minimum_age']}-{school['maximum_age']} years, "
-        info += f"{school['state_or_independent']}, {school['rating']} ⭐"
+        info = f"{school['name']}, {school['gender']}, {school['min_age']}-{school['max_age']} years, "
+        info += f"{school['state_or_independent']}, {school['rating']}"
         
         school_locations.append({
             "name": school['name'],
-            "lat": school['latitude'],
-            "lon": school['longitude'],
+            "lat": school['lat'],
+            "lon": school['lng'],
             "school": True,
             "info": info
         })
@@ -81,10 +82,10 @@ def get_property_coordinates(shortlist: List[Dict]) -> List[Dict]:
     
     for prop in shortlist:
         # Extract coordinates from property details
-        property_details = prop.get('property_details', {})
-        location = property_details.get('location', {})
+        latitude = prop.get('latitude', {})
+        longitude = prop.get('longitude', {})
         
-        if not location or 'latitude' not in location or 'longitude' not in location:
+        if not (latitude and longitude):
             continue
             
         # Get nearest station information
@@ -97,8 +98,8 @@ def get_property_coordinates(shortlist: List[Dict]) -> List[Dict]:
         
         property_locations.append({
             "name": prop['address'],
-            "lat": location['latitude'],
-            "lon": location['longitude'],
+            "lat": latitude,
+            "lon": longitude,
             "school": False,
             "info": info
         })
@@ -148,7 +149,7 @@ def school_map_view_with_properties(filters, shortlist):
     with col3:
         age_range = st.slider(
             "Age Range",
-            min_value=3,
+            min_value=0,
             max_value=24,
             value=(3, 11),
             key="age_range"
@@ -160,7 +161,7 @@ def school_map_view_with_properties(filters, shortlist):
     with col4:
         rating = st.multiselect(
             "Ofsted Rating",
-            ["Outstanding", "Good", "Requires Improvement", "Inadequate"],
+            ["Outstanding", "Good", "Requires improvement", "Inadequate"],
             default=["Outstanding", "Good"],
             key="rating"
         )
