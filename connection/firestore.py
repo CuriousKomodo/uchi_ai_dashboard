@@ -1,5 +1,6 @@
 import itertools
 import os
+import re
 from typing import List, Dict, Optional
 import time
 import concurrent.futures
@@ -263,9 +264,17 @@ class FireStore:
 
                     latitude = None
                     longitude = None
+                    epc_url = None
+                    council_tax_band = None
                     if property_data.get("property_details") and property_data["property_details"].get("location") and isinstance(property_data["property_details"]["location"], dict):
                         latitude = property_data["property_details"]["location"].get("latitude")
                         longitude = property_data["property_details"]["location"].get("longitude")
+                        epcs = property_data["property_details"].get("epcs")
+                        if epcs and "url" in epcs[0]:
+                            epc_url = epcs[0]["url"]
+                        council_tax = property_data["property_details"].get("localPropertyTax")
+                        if council_tax and "value" in council_tax:
+                            council_tax_band = council_tax["value"]
 
                     prop.update({
                         "address": property_data.get("address"),
@@ -275,7 +284,11 @@ class FireStore:
                         "stations": property_data.get("stations"),
                         "latitude": latitude,
                         "longitude": longitude,
+                        "features": property_data.get("features"),
+                        "epc": epc_url,
+                        "council_tax_band": council_tax_band,
                     })
+
                     if property_data["property_details"].get("salesInfo"):
                         prop.update({"tenure_type": property_data["property_details"].get("salesInfo").get("tenureType")})
                         prop.update(property_data["property_details"].get("salesInfo"))
@@ -283,7 +296,8 @@ class FireStore:
                         prop["floorplans"] = property_data["property_details"]["floorplans"]
 
                 if property_id in extractions:
-                    prop.update(extractions[property_id].get("results", {}))
+                    extraction = extractions[property_id].get("results", {})
+                    prop.update(extraction)
 
                 all_shortlisted_properties.append(prop)
         
@@ -300,10 +314,64 @@ class FireStore:
             user_details.update({"user_id":users[0].id})
         return user_details
 
+    def get_property_by_id(self, property_id: str) -> Optional[Dict]:
+        """Fetch a single property by ID."""
+        try:
+            # Get property from properties collection using a query
+            property_query = self.db.collection("properties").where("id", "==", int(property_id)).limit(1)
+            property_docs = property_query.get()
+            
+            if not property_docs:
+                return None
+                
+            property_data = property_docs[0].to_dict()
+            
+            # Get property details
+            property_details = property_data.get("property_details", {})
+            
+            # Get extractions if available
+            extractions_doc = self.extraction_collection.where("property_id", "==", property_id).get()
+            extractions = {}
+            if extractions_doc:
+                extractions = extractions_doc[0].to_dict()
+            
+            # Combine all data
+            result = {
+                "property_id": property_id,
+                "address": property_data.get("address"),
+                "postcode": property_data.get("postcode"),
+                "price": property_data.get("price"),
+                "num_bedrooms": property_data.get("num_bedrooms"),
+                "stations": property_data.get("stations"),
+                "compressed_images": extractions.get("compressed_images", []),  # Get images from property_details
+                "floorplans": property_details.get("floorplans", []),
+            }
+            
+            # Add location data if available
+            if property_details.get("location"):
+                result.update({
+                    "latitude": property_details["location"].get("latitude"),
+                    "longitude": property_details["location"].get("longitude")
+                })
+            
+            # Add sales info if available
+            if property_details.get("salesInfo"):
+                result.update(property_details["salesInfo"])
+            
+            # Add extraction results if available
+            if extractions:
+                result.update(extractions.get("results", {}))
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error fetching property {property_id}: {str(e)}")
+            return None
+
 
 if __name__ == '__main__':
     firestore = FireStore()
     # submissions = firestore.list_all_submissions()
     # firestore.fetch_user_details_by_email('hu.kefei@yahoo.co.uk')
     all_shortlisted_properties = firestore.get_shortlists_by_user_id("hIk6crfW5BncLCYK8fIR")
-    save_json(all_shortlisted_properties, "shortlist_new.json")
+    # save_json(all_shortlisted_properties, "shortlist_new.json")

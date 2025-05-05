@@ -75,5 +75,5 @@ def show_chat_interface():
             st.session_state.messages.append({"role": "assistant", "content": response})
 
     # Back to dashboard button
-    if st.button("← Back to Dashboard"):
+    if st.button("← Back to Dashboard", key="back_to_dashboard_from_chat"):
         st.query_params.clear() 

@@ -3,7 +3,9 @@ from connection.firestore import FireStore
 from custom_exceptions import NoUserFound
 from utils.draft import draft_enquiry
 from utils.filter import sort_by_chosen_option
-from utils.image_gallery_manager import ImageGalleryManager
+
+import base64
+import json
 
 def on_draft_enquiry(
         property_id: str,
@@ -52,14 +54,37 @@ def show_dashboard(firestore: FireStore):
     # Initialize session state for image caching
     if "decoded_images" not in st.session_state:
         st.session_state.decoded_images = {}
-    if "image_cache_timestamps" not in st.session_state:
-        st.session_state.image_cache_timestamps = {}
-    if "last_property_ids" not in st.session_state:
-        st.session_state.last_property_ids = set()
 
     # Fetch properties from Firestore
     with st.spinner(f'Hello {st.session_state.first_name}. Loading properties for you...'):
         shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
+        
+        # Store the complete shortlist in session state
+        st.session_state.property_shortlist = {}
+        for prop in shortlist:
+            # Ensure we have all the required fields
+            property_data = {
+                'property_id': prop['property_id'],
+                'address': prop['address'],
+                'price': prop['price'],
+                'num_bedrooms': prop['num_bedrooms'],
+                'compressed_images': prop.get('compressed_images', []),
+                'floorplans': prop.get('floorplans', []),
+                'latitude': prop.get('latitude'),
+                'longitude': prop.get('longitude'),
+                'stations': prop.get('stations', []),
+                'match_output': prop.get('match_output', {}),
+                'matched_criteria': prop.get('matched_criteria', {}),
+                'journey': prop.get('journey', {}),
+                'deprivation': prop.get('deprivation'),
+                'places_of_interest': prop.get('places_of_interest', []),
+                # only applicable for flats
+                'ground_rent': prop.get('groundRent'),
+                'tenure_type': prop.get('tenureType'),
+                'service_charge': prop.get('annualServiceCharge'),
+                'length_of_lease': prop.get('lengthOfLease'),
+            }
+            st.session_state.property_shortlist[prop['property_id']] = property_data
 
     if shortlist:
         sort_by = st.selectbox(
@@ -77,112 +102,45 @@ def show_dashboard(firestore: FireStore):
             sort_by_chosen_option("Price: Low to High", shortlist)
         sort_by_chosen_option(st.session_state.user_sort_order, shortlist)
 
-        # Initialize image gallery manager with cached images
-        gallery_manager = ImageGalleryManager()
-        
-        # Only pre-decode new images
-        current_property_ids = {prop['property_id'] for prop in shortlist}
-        new_property_ids = current_property_ids - st.session_state.last_property_ids
-        
-        if new_property_ids:
-            new_properties = [prop for prop in shortlist if prop['property_id'] in new_property_ids]
-            gallery_manager.pre_decode_images(new_properties)
-            st.session_state.last_property_ids = current_property_ids
-
         for prop in shortlist:
             st.markdown("---")
             with st.container():
-                col1, col2, col3, col4 = st.columns([5, 1, 2, 2])
+                col1, col2 = st.columns([3, 1])
                 with col1:
+                    # Display property image in a smaller container
+                    if prop.get('compressed_images'):
+                        try:
+                            # Decode the first image if not already decoded
+                            if prop['property_id'] not in st.session_state.decoded_images:
+                                decoded_image = base64.b64decode(prop['compressed_images'][0])
+                                st.session_state.decoded_images[prop['property_id']] = [decoded_image]
+                            
+                            # Create a container for the image with max width
+                            with st.container():
+                                st.image(
+                                    st.session_state.decoded_images[prop['property_id']][0],
+                                    width=300  # Set a fixed width for the image
+                                )
+                        except Exception as e:
+                            print(f"Error displaying image for property {prop['property_id']}: {str(e)}")
+                            st.write("No image available")
+                    
+                    # Display property details
                     st.markdown(f"<h3>{prop['address']}</h3>", unsafe_allow_html=True)
-                    st.markdown(f"<h4>{prop['num_bedrooms']} bedrooms - £{prop['price']}</h4>", unsafe_allow_html=True)
-                with col2:
-                    if st.button(f"❤️ Save", key=f"save {prop['property_id']}"):
-                        st.success("Property saved!")
-                with col3:
-                    enquiry_key = f"enquire_{prop['property_id']}"
-                    if st.button(
-                            "️✉️ Draft enquiry",
-                            key=enquiry_key,
-                            on_click=on_draft_enquiry,
-                            args=(prop['property_id'], prop, st.session_state.first_name, "general enquiry")
-                    ):
-                        pass
-                with col4:
-                    if st.session_state.get(f"draft_msg_{prop['property_id']}", False):
-                        with st.popover("📝Review your draft"):
-                            st.markdown(
-                                f"<h5>Subject: enquiring about property at {prop['address']}</h3>",
-                                unsafe_allow_html=True
-                            )
-                            st.text_area(
-                                f"Feel free to edit the content.",
-                                value=st.session_state.get(f"draft_msg_{prop['property_id']}"),
-                                height=300,
-                                key=f"textarea_{prop['property_id']}"
-                            )
-
-            with st.container():
-                col1, col2 = st.columns([3, 5])
-                with col1:
-                    gallery_manager.display_image_gallery(prop)
-                    col11, col12, col13 = st.columns([1,1,1])
-                    with col11:
-                        st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{prop['property_id']}")
-                    with col12:
-                        # Use Streamlit's query parameters for chat URL
-                        chat_params = {
-                            "property_id": prop['property_id'],
-                            "address": prop['address'],
-                            "price": prop['price'],
-                            "bedrooms": prop['num_bedrooms']
-                        }
-                        if st.button("🤖Ask AI", key=f"chat_{prop['property_id']}"):
-                            st.query_params.update(**chat_params)
-                            st.rerun()
-                    with col13:
-                        if prop.get('floorplans') and isinstance(prop["floorplans"], list):
-                            floorplan_url = prop["floorplans"][0].get("url")
-                            st.link_button("Floorplan", url=floorplan_url)
-
-                with col2:
-                    st.write("<h5>🏠Matched property criteria: </h5>", unsafe_allow_html=True)
+                    st.markdown(f"<h4>{prop['num_bedrooms']} bedrooms - £{prop['price']:,}</h4>", unsafe_allow_html=True)
+                    
+                    # Display matched criteria
                     match_criteria = prop.get("match_output", {})
                     match_criteria_additional = prop.get("matched_criteria", {})
                     match_criteria.update({criteria: True for criteria in match_criteria_additional})
-                    match_criteria_string = ""  # widgets with colors
+                    criteria_string = ""
                     for key, value in match_criteria.items():
                         if isinstance(value, bool) and value:
-                            match_criteria_string += f" {key.replace('_', ' ').capitalize()} ✅  "
-                    st.markdown(match_criteria_string, unsafe_allow_html=True)
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if prop.get("journey") and prop["journey"].get("duration"):
-                        st.markdown(
-                            f"<h6>🚗Estimated commute to work: {prop['journey'].get('duration')} min </h6>",
-                            unsafe_allow_html=True
-                        )
-
-                    if "stations" in prop:
-                            st.write("**🚉 Nearest Stations:**")
-                            for station in prop["stations"]:
-                                st.write(f"- {station['station']} ({station['distance']} miles)")
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if prop.get('deprivation') and prop["deprivation"] > 0:
-                        st.markdown(f"<h6>% households with any deprivation: {prop.get('deprivation')}% <h6>",
-                                    unsafe_allow_html=True)
-                        if prop['deprivation'] < 20:
-                            st.markdown(
-                                "⭐Relatively wealthy area, i.e. fewer than 1 in 5 residents are income‑deprived.")
-
-                    with st.expander("🏞️🧘Places within 1km which might be relevant", expanded=False):
-                        st.markdown(
-                            "<div style='min-width: 500px;'>", unsafe_allow_html=True
-                        )
-                        for place in prop.get("places_of_interest", []):
-                            if place.get("rating"):
-                                st.write(f"- {place['name']} (⭐ {place['rating']})")
-                            else:
-                                st.write(f"- {place['name']} ")
-                        st.markdown("</div>", unsafe_allow_html=True)
+                            criteria_string += f" {key.replace('_', ' ').capitalize()} ✅  "
+                    st.markdown(criteria_string, unsafe_allow_html=True)
+                
+                with col2:
+                    # Detail button
+                    if st.button("View Details", key=f"detail_{prop['property_id']}"):
+                        st.query_params.update(property_id=prop['property_id'])
+                        st.rerun()
