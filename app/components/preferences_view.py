@@ -103,7 +103,7 @@ def show_preferences_section(submission_data: Dict[str, Any]) -> None:
             st.markdown(f'<div class="preference-value">{content.get("is_first_time_buyer", "Not specified")}</div>', unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
 
-            st.markdown('<div class="preference-label">💭 Additional Details</div>', unsafe_allow_html=True)
+            st.markdown('<div class="preference-label">💭 Desired features </div>', unsafe_allow_html=True)
             st.markdown(f'<div class="preference-value">{content.get("user_preference", "Not specified")}</div>', unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
 
