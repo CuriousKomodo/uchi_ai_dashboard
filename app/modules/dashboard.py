@@ -106,45 +106,134 @@ def show_dashboard(firestore: FireStore):
             sort_by_chosen_option("Price: Low to High", shortlist)
         sort_by_chosen_option(st.session_state.user_sort_order, shortlist)
 
-        for prop in shortlist:
-            st.markdown("---")
-            with st.container():
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    # Display property image in a smaller container
-                    if prop.get('compressed_images'):
-                        try:
-                            # Decode the first image if not already decoded
-                            if prop['property_id'] not in st.session_state.decoded_images:
-                                decoded_image = base64.b64decode(prop['compressed_images'][0])
-                                st.session_state.decoded_images[prop['property_id']] = [decoded_image]
-                            
-                            # Create a container for the image with max width
-                            with st.container():
+        # Add custom CSS for property cards
+        st.markdown("""
+            <style>
+            .property-card {
+                border: 1px solid #e0e0e0;
+                border-radius: 10px;
+                padding: 15px;
+                margin-bottom: 20px;
+                background-color: white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                transition: transform 0.2s;
+            }
+            .property-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            }
+            .property-image {
+                width: 100%;
+                height: 200px;
+                object-fit: cover;
+                border-radius: 8px;
+                margin-bottom: 10px;
+            }
+            .property-title {
+                font-size: 1.2em;
+                font-weight: bold;
+                margin: 10px 0;
+                color: #1f1f1f;
+            }
+            .property-price {
+                font-size: 1.1em;
+                color: #2e7d32;
+                font-weight: bold;
+                margin: 5px 0;
+            }
+            .property-details {
+                font-size: 0.9em;
+                color: #666;
+                margin: 5px 0;
+            }
+            .criteria-tag {
+                display: inline-block;
+                background-color: #e3f2fd;
+                color: #1976d2;
+                padding: 4px 8px;
+                border-radius: 4px;
+                margin: 2px;
+                font-size: 0.8em;
+            }
+            .view-details-btn {
+                width: 100%;
+                margin-top: 15px;
+                background-color: #1976d2;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-weight: bold;
+                font-size: 1.1em;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
+            }
+            .view-details-btn:hover {
+                background-color: #1565c0;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(25, 118, 210, 0.4);
+            }
+            .view-details-btn:active {
+                transform: translateY(0);
+                box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # Create a grid of property cards
+        for i in range(0, len(shortlist), 3):
+            cols = st.columns(3)
+            for j in range(3):
+                if i + j < len(shortlist):
+                    prop = shortlist[i + j]
+                    with cols[j]:
+                        # Create property card
+                        #st.markdown('<div class="property-card">', unsafe_allow_html=True)
+                        
+                        # Display property image
+                        if prop.get('compressed_images'):
+                            try:
+                                # Decode the first image if not already decoded
+                                if prop['property_id'] not in st.session_state.decoded_images:
+                                    decoded_image = base64.b64decode(prop['compressed_images'][0])
+                                    st.session_state.decoded_images[prop['property_id']] = [decoded_image]
+                                
                                 st.image(
                                     st.session_state.decoded_images[prop['property_id']][0],
-                                    width=300  # Set a fixed width for the image
+                                    use_column_width=True
                                 )
-                        except Exception as e:
-                            print(f"Error displaying image for property {prop['property_id']}: {str(e)}")
-                            st.write("No image available")
-                    
-                    # Display property details
-                    st.markdown(f"<h3>{prop['address']}</h3>", unsafe_allow_html=True)
-                    st.markdown(f"<h4>{prop['num_bedrooms']} bedrooms - £{prop['price']:,}</h4>", unsafe_allow_html=True)
-                    
-                    # Display matched criteria
-                    match_criteria = prop.get("match_output", {})
-                    match_criteria_additional = prop.get("matched_criteria", {})
-                    match_criteria.update({criteria: True for criteria in match_criteria_additional})
-                    criteria_string = ""
-                    for key, value in match_criteria.items():
-                        if isinstance(value, bool) and value:
-                            criteria_string += f" {key.replace('_', ' ').capitalize()} ✅  "
-                    st.markdown(criteria_string, unsafe_allow_html=True)
-                
-                with col2:
-                    # Detail button
-                    if st.button("View Details", key=f"detail_{prop['property_id']}"):
-                        st.query_params.update(property_id=prop['property_id'])
-                        st.rerun()
+                            except Exception as e:
+                                print(f"Error displaying image for property {prop['property_id']}: {str(e)}")
+                                st.write("No image available")
+                        
+                        # Property title and price
+                        st.markdown(f'<div class="property-title">{prop["address"]}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="property-price">£{prop["price"]:,}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="property-details">{prop["num_bedrooms"]} bedrooms</div>', unsafe_allow_html=True)
+                        
+                        # Display matched criteria
+                        match_criteria = prop.get("match_output", {})
+                        match_criteria_additional = prop.get("matched_criteria", {})
+                        match_criteria.update({criteria: True for criteria in match_criteria_additional})
+                        
+                        criteria_html = '<div style="margin: 10px 0;">'
+                        for key, value in match_criteria.items():
+                            if isinstance(value, bool) and value:
+                                criteria_html += f'<span class="criteria-tag">{key.replace("_", " ").capitalize()}</span>'
+                        criteria_html += '</div>'
+                        st.markdown(criteria_html, unsafe_allow_html=True)
+                        
+                        # View Details button
+                        if st.button(
+                                "View Details",
+                                key=f"detail_{prop['property_id']}",
+                                use_container_width=True,
+                                type="primary"
+                        ):
+                            st.query_params.update(property_id=prop['property_id'])
+                            st.rerun()
+                        
+                        #st.markdown('</div>', unsafe_allow_html=True)
