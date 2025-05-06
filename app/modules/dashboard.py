@@ -55,6 +55,127 @@ def show_dashboard(firestore: FireStore):
     if "decoded_images" not in st.session_state:
         st.session_state.decoded_images = {}
 
+    # Fetch user's submission data first
+    with st.spinner(f'Hello {st.session_state.first_name}. Loading your preferences...'):
+        submissions = firestore.get_submissions_by_user_id(st.session_state.user_id)
+        if submissions:
+            # Store the most recent submission in session state
+            st.session_state.user_submission = submissions[-1]  # Get the most recent submission
+        else:
+            st.session_state.user_submission = None
+
+    # Display user preferences if available
+    if st.session_state.user_submission:
+        content = st.session_state.user_submission.get('content', {})
+        
+        # Create a container for preferences with a nice background
+        st.markdown("""
+            <style>
+            .preference-container {
+                background-color: #f8f9fa;
+                border-radius: 10px;
+                padding: 20px;
+                margin-bottom: 20px;
+                border: 1px solid #e9ecef;
+            }
+            .preference-title {
+                color: #2c3e50;
+                font-size: 1.5em;
+                font-weight: bold;
+                margin-bottom: 15px;
+            }
+            .preference-section {
+                margin: 10px 0;
+                padding: 10px;
+                background-color: white;
+                border-radius: 8px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .preference-label {
+                color: #6c757d;
+                font-size: 0.9em;
+                margin-bottom: 5px;
+            }
+            .preference-value {
+                color: #2c3e50;
+                font-size: 1.1em;
+                font-weight: 500;
+            }
+            .preference-tag {
+                display: inline-block;
+                background-color: #e3f2fd;
+                color: #1976d2;
+                padding: 4px 12px;
+                border-radius: 15px;
+                margin: 2px;
+                font-size: 0.9em;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # Main preferences container
+        st.markdown('<div class="preference-container">', unsafe_allow_html=True)
+        st.markdown('<div class="preference-title">✨ Your Property Preferences</div>', unsafe_allow_html=True)
+        
+        # Create two columns for layout
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Budget and Property Type
+            st.markdown('<div class="preference-section">', unsafe_allow_html=True)
+            st.markdown('<div class="preference-label">💰 Budget</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="preference-value">£{content.get("max_price", 0):,}k</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="preference-section">', unsafe_allow_html=True)
+            st.markdown('<div class="preference-label">🏠 Property Type</div>', unsafe_allow_html=True)
+            property_types = content.get('property_type', [])
+            types_html = ''.join([f'<span class="preference-tag">{pt}</span>' for pt in property_types])
+            st.markdown(f'<div>{types_html}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="preference-section">', unsafe_allow_html=True)
+            st.markdown('<div class="preference-label">🛏️ Bedrooms</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="preference-value">{content.get("num_bedrooms", 0)}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="preference-section">', unsafe_allow_html=True)
+            st.markdown('<div class="preference-label">📅 Minimum Lease</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="preference-value">{content.get("min_lease_year", 0)} years</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with col2:
+            # Location and Lifestyle
+            st.markdown('<div class="preference-section">', unsafe_allow_html=True)
+            st.markdown('<div class="preference-label">📍 Workplace Location</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="preference-value">{content.get("workplace_location", "Not specified")}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="preference-section">', unsafe_allow_html=True)
+            st.markdown('<div class="preference-label">👨‍👩‍👧‍👦 Family Status</div>', unsafe_allow_html=True)
+            family_status = []
+            if content.get('has_child') == 'Yes':
+                family_status.append('Has Children')
+            if content.get('has_pet') == 'Yes':
+                family_status.append('Has Pets')
+            if not family_status:
+                family_status = ['No Children', 'No Pets']
+            status_html = ''.join([f'<span class="preference-tag">{status}</span>' for status in family_status])
+            st.markdown(f'<div>{status_html}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="preference-section">', unsafe_allow_html=True)
+            st.markdown('<div class="preference-label">🎯 Hobbies & Interests</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="preference-value">{content.get("hobbies", "Not specified")}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="preference-section">', unsafe_allow_html=True)
+            st.markdown('<div class="preference-label">💭 Additional Preferences</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="preference-value">{content.get("user_preference", "Not specified")}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
     # Fetch properties from Firestore
     with st.spinner(f'Hello {st.session_state.first_name}. Loading properties for you...'):
         shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
@@ -192,48 +313,48 @@ def show_dashboard(firestore: FireStore):
                     with cols[j]:
                         # Create property card
                         #st.markdown('<div class="property-card">', unsafe_allow_html=True)
-                        
-                        # Display property image
-                        if prop.get('compressed_images'):
-                            try:
-                                # Decode the first image if not already decoded
-                                if prop['property_id'] not in st.session_state.decoded_images:
-                                    decoded_image = base64.b64decode(prop['compressed_images'][0])
-                                    st.session_state.decoded_images[prop['property_id']] = [decoded_image]
-                                
-                                st.image(
-                                    st.session_state.decoded_images[prop['property_id']][0],
-                                    use_column_width=True
-                                )
-                            except Exception as e:
-                                print(f"Error displaying image for property {prop['property_id']}: {str(e)}")
-                                st.write("No image available")
-                        
-                        # Property title and price
-                        st.markdown(f'<div class="property-title">{prop["address"]}</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="property-price">£{prop["price"]:,}</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="property-details">{prop["num_bedrooms"]} bedrooms</div>', unsafe_allow_html=True)
-                        
-                        # Display matched criteria
-                        match_criteria = prop.get("match_output", {})
-                        match_criteria_additional = prop.get("matched_criteria", {})
-                        match_criteria.update({criteria: True for criteria in match_criteria_additional})
-                        
-                        criteria_html = '<div style="margin: 10px 0;">'
-                        for key, value in match_criteria.items():
-                            if isinstance(value, bool) and value:
-                                criteria_html += f'<span class="criteria-tag">{key.replace("_", " ").capitalize()}</span>'
-                        criteria_html += '</div>'
-                        st.markdown(criteria_html, unsafe_allow_html=True)
-                        
-                        # View Details button
-                        if st.button(
-                                "View Details",
-                                key=f"detail_{prop['property_id']}",
-                                use_container_width=True,
-                                type="primary"
-                        ):
-                            st.query_params.update(property_id=prop['property_id'])
-                            st.rerun()
+                        with st.container(border=True):
+                            # Display property image
+                            if prop.get('compressed_images'):
+                                try:
+                                    # Decode the first image if not already decoded
+                                    if prop['property_id'] not in st.session_state.decoded_images:
+                                        decoded_image = base64.b64decode(prop['compressed_images'][0])
+                                        st.session_state.decoded_images[prop['property_id']] = [decoded_image]
+
+                                    st.image(
+                                        st.session_state.decoded_images[prop['property_id']][0],
+                                        use_column_width=True
+                                    )
+                                except Exception as e:
+                                    print(f"Error displaying image for property {prop['property_id']}: {str(e)}")
+                                    st.write("No image available")
+
+                            # Property title and price
+                            st.markdown(f'<div class="property-title">{prop["address"]}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="property-price">£{prop["price"]:,}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="property-details">{prop["num_bedrooms"]} bedrooms</div>', unsafe_allow_html=True)
+
+                            # Display matched criteria
+                            match_criteria = prop.get("match_output", {})
+                            match_criteria_additional = prop.get("matched_criteria", {})
+                            match_criteria.update({criteria: True for criteria in match_criteria_additional})
+
+                            criteria_html = '<div style="margin: 10px 0;">'
+                            for key, value in match_criteria.items():
+                                if isinstance(value, bool) and value:
+                                    criteria_html += f'<span class="criteria-tag">{key.replace("_", " ").capitalize()}</span>'
+                            criteria_html += '</div>'
+                            st.markdown(criteria_html, unsafe_allow_html=True)
+
+                            # View Details button
+                            if st.button(
+                                    "View Details",
+                                    key=f"detail_{prop['property_id']}",
+                                    use_container_width=True,
+                                    type="primary"
+                            ):
+                                st.query_params.update(property_id=prop['property_id'])
+                                st.rerun()
                         
                         #st.markdown('</div>', unsafe_allow_html=True)

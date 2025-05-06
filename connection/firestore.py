@@ -234,7 +234,7 @@ class FireStore:
         
         # Query for shortlists
         shortlists = self.shortlist_collection.where("user_id", "==", user_id).get()
-        
+
         if not shortlists:
             return []
         
@@ -307,6 +307,35 @@ class FireStore:
         self.cache_manager.get_property_cache()[cache_key] = all_shortlisted_properties
         return all_shortlisted_properties
 
+    def get_submissions_by_user_id(self, user_id: str) -> List[Dict]:
+        """Fetch all submissions for a specific user.
+        
+        Args:
+            user_id (str): The ID of the user to fetch submissions for
+            
+        Returns:
+            List[Dict]: A list of submission documents, each containing the submission data
+        """
+        try:
+            # Query submissions collection for the user_id
+            submissions = self.submission_collection.where("user_id", "==", user_id).get()
+            
+            if not submissions:
+                return []
+            
+            # Convert Firestore documents to dictionaries
+            submission_list = []
+            for submission in submissions:
+                submission_data = submission.to_dict()
+                submission_data["id"] = submission.id  # Add the document ID
+                submission_list.append(submission_data)
+            
+            return submission_list
+            
+        except Exception as e:
+            print(f"Error fetching submissions for user {user_id}: {str(e)}")
+            return []
+
     def fetch_user_details_by_email(self, email) -> Dict:
         users = self.db.collection('users').where('email', '==', email).get()
         if not users:
@@ -375,5 +404,6 @@ if __name__ == '__main__':
     firestore = FireStore()
     # submissions = firestore.list_all_submissions()
     # firestore.fetch_user_details_by_email('hu.kefei@yahoo.co.uk')
-    all_shortlisted_properties = firestore.get_shortlists_by_user_id("hIk6crfW5BncLCYK8fIR")
-    save_json(all_shortlisted_properties, "shortlist_new.json")
+    # all_shortlisted_properties = firestore.get_shortlists_by_user_id("hIk6crfW5BncLCYK8fIR")
+    # save_json(all_shortlisted_properties, "shortlist_new.json")
+    submissions = firestore.get_submissions_by_user_id("hIk6crfW5BncLCYK8fIR")
