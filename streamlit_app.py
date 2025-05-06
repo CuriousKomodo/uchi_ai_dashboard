@@ -1,4 +1,10 @@
 import streamlit as st
+import sys
+import os
+
+# Add the current directory to the Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from connection.firestore import FireStore
 from app.modules.dashboard import show_dashboard, login
 from app.modules.chat import show_chat_interface
@@ -49,7 +55,8 @@ def main():
 
         # Show view selector at the top only if user is authenticated
         if st.session_state.authenticated:
-            st.markdown("### Select View")
+            st.markdown("### Your personal Uchi AI dashboard")
+            st.markdown("##### Select view")
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("🏠 Dashboard View", use_container_width=True, 
