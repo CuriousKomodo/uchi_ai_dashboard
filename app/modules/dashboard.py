@@ -65,6 +65,7 @@ def show_dashboard(firestore: FireStore):
             # Ensure we have all the required fields
             property_data = {
                 'property_id': prop['property_id'],
+                'postcode': prop['postcode'],
                 'address': prop['address'],
                 'price': prop['price'],
                 'num_bedrooms': prop['num_bedrooms'],
@@ -79,9 +80,11 @@ def show_dashboard(firestore: FireStore):
                 'deprivation': prop.get('deprivation'),
                 'places_of_interest': prop.get('places_of_interest', []),
                 "epc": prop.get("epc"),
+                "features": prop.get("features", []),
+                "council_tax_band": prop.get("council_tax_band", []),
                 # only applicable for flats
                 'ground_rent': prop.get('groundRent'),
-                'tenure_type': prop.get('tenureType'),
+                'tenure_type': prop.get('tenure_type'),
                 'service_charge': prop.get('annualServiceCharge'),
                 'length_of_lease': prop.get('lengthOfLease'),
             }

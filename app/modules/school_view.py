@@ -34,9 +34,8 @@ def get_schools_locations(filters) -> List[Dict]:
     if not schools_file.exists():
         st.error(f"Schools data file not found at {schools_file}")
         return []
-    print(filters)
+
     schools = pd.read_pickle(schools_file)
-    print(len(schools))
     
     # Apply filters
     if filters.get('gender'):
