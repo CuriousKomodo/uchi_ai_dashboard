@@ -299,6 +299,8 @@ class FireStore:
                     extraction = extractions[property_id].get("results", {})
                     prop.update(extraction)
 
+                if prop.get("journey"):
+                    prop["journey"] = {"duration": prop["journey"]["duration"]}
                 all_shortlisted_properties.append(prop)
         
         # Cache the result
@@ -314,7 +316,7 @@ class FireStore:
             user_details.update({"user_id":users[0].id})
         return user_details
 
-    def get_property_by_id(self, property_id: str) -> Optional[Dict]:
+    def get_property_by_id(self, property_id: str) -> Optional[Dict]:  # TODO: need to deprecate this
         """Fetch a single property by ID."""
         try:
             # Get property from properties collection using a query
@@ -374,4 +376,4 @@ if __name__ == '__main__':
     # submissions = firestore.list_all_submissions()
     # firestore.fetch_user_details_by_email('hu.kefei@yahoo.co.uk')
     all_shortlisted_properties = firestore.get_shortlists_by_user_id("hIk6crfW5BncLCYK8fIR")
-    # save_json(all_shortlisted_properties, "shortlist_new.json")
+    save_json(all_shortlisted_properties, "shortlist_new.json")

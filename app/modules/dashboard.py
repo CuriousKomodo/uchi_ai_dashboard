@@ -78,6 +78,7 @@ def show_dashboard(firestore: FireStore):
                 'journey': prop.get('journey', {}),
                 'deprivation': prop.get('deprivation'),
                 'places_of_interest': prop.get('places_of_interest', []),
+                "epc": prop.get("epc"),
                 # only applicable for flats
                 'ground_rent': prop.get('groundRent'),
                 'tenure_type': prop.get('tenureType'),
