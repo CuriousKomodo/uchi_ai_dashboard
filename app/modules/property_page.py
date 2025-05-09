@@ -5,7 +5,7 @@ import folium
 from streamlit_folium import folium_static
 from connection.firestore import FireStore
 from app.modules.chat import show_chat_interface
-from app.utils.location_utils import extract_prefix_postcode, calculate_distance, get_nearby_schools
+from utils.location_utils import extract_prefix_postcode, calculate_distance, get_nearby_schools
 
 def show_property_page(firestore: FireStore):
     """Show the property detail page."""
