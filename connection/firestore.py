@@ -239,14 +239,16 @@ class FireStore:
 
         if not shortlists:
             return []
-        
+
+        shortlists = [shortlist for shortlist in shortlists if shortlist.create_time > datetime.now(timezone.utc) - timedelta(days=30)]
+
         # Get all property IDs
         property_ids = []
-        for shortlist in shortlists:
+        for shortlist in shortlists:  # FIXME: maybe remove this in the future
             shortlist_data = shortlist.to_dict()
             properties = shortlist_data.get("properties", [])
             property_ids.extend([prop["property_id"] for prop in properties])
-        
+
         # Fetch properties and extractions in parallel
         with concurrent.futures.ThreadPoolExecutor() as executor:
             properties_future = executor.submit(self._fetch_properties, property_ids)
@@ -256,23 +258,19 @@ class FireStore:
             extractions = extractions_future.result()
         
         # Combine the data
+        seen_ids = set()
         all_shortlisted_properties = []
         for shortlist in shortlists:
             shortlist_data = shortlist.to_dict()
             for prop in shortlist_data.get("properties", []):
                 property_id = prop["property_id"]
+                if property_id in seen_ids:
+                    continue
                 if property_id in properties:
                     property_data = properties[property_id]
-                    if property_id != 160583351:
-                        continue
-
-                    latitude = None
-                    longitude = None
                     epc_url = None
                     council_tax_band = None
                     if property_data.get("property_details") and property_data["property_details"].get("location") and isinstance(property_data["property_details"]["location"], dict):
-                        latitude = property_data["property_details"]["location"].get("latitude")
-                        longitude = property_data["property_details"]["location"].get("longitude")
                         epcs = property_data["property_details"].get("epcs")
                         if epcs and "url" in epcs[0]:
                             epc_url = epcs[0]["url"]
@@ -287,8 +285,8 @@ class FireStore:
                         "price": property_data.get("price"),
                         "num_bedrooms": property_data.get("num_bedrooms"),
                         "stations": property_data.get("stations"),
-                        "latitude": latitude,
-                        "longitude": longitude,
+                        "latitude": property_data.get("latitude"),
+                        "longitude": property_data.get("longitude"),
                         "features": property_data.get("features"),
                         "epc": epc_url,
                         "council_tax_band": council_tax_band,
@@ -307,7 +305,9 @@ class FireStore:
                 if prop.get("journey"):
                     prop["journey"] = {"duration": prop["journey"]["duration"]}
                 all_shortlisted_properties.append(prop)
-        
+                seen_ids.add(prop["property_id"])
+
+        all_shortlisted_properties
         # Cache the result
         self.cache_manager.get_property_cache()[cache_key] = all_shortlisted_properties
         return all_shortlisted_properties
@@ -414,6 +414,6 @@ if __name__ == '__main__':
     firestore = FireStore()
     # submissions = firestore.list_all_submissions()
     # firestore.fetch_user_details_by_email('hu.kefei@yahoo.co.uk')
-    # all_shortlisted_properties = firestore.get_shortlists_by_user_id("hIk6crfW5BncLCYK8fIR")
+    all_shortlisted_properties = firestore.get_shortlists_by_user_id("hIk6crfW5BncLCYK8fIR")
     # save_json(all_shortlisted_properties, "shortlist_new.json")
-    submissions = firestore.get_submissions_by_user_id("hIk6crfW5BncLCYK8fIR")
+    # submissions = firestore.get_submissions_by_user_id("hIk6crfW5BncLCYK8fIR")
