@@ -74,10 +74,10 @@ def show_dashboard(firestore: FireStore):
     with st.spinner(f'Hello {st.session_state.first_name}. Loading properties for you...'):
         shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
         # TODO: replace me with the actual flow
-        st.header("Feature Properties")
-        st.subheader("3 bedrooms in Dollis Hill - 450k")
-        video_url = "https://www.youtube.com/watch?v=Y7OFw2bcYNY"
-        st.video(video_url)
+        # st.header("Feature Properties")
+        # st.subheader("3 bedrooms in Dollis Hill - 450k")
+        # video_url = "https://www.youtube.com/watch?v=Y7OFw2bcYNY"
+        # st.video(video_url)
         # Store the complete shortlist in session state
         st.session_state.property_shortlist = {}
         for prop in shortlist:
