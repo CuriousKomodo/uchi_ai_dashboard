@@ -3,6 +3,7 @@ import streamlit as st
 
 from connection.firestore import FireStore
 from app.modules.chat import show_chat_interface
+from app.components.criteria_components import render_property_criteria
 
 from utils.text_utils import extract_conclusion
 from utils.demographic_utils import (
@@ -46,74 +47,8 @@ def render_ai_notes(property_details):
 
 def render_property_details_tab(property_details):
     """Render the Property Details tab content."""
-    st.markdown("#### Matched Property Criteria")
-    match_criteria = property_details.get("match_output", {})
-    match_criteria_additional = property_details.get("matched_criteria", {})
-    match_criteria.update({criteria: True for criteria in match_criteria_additional})
-    
-    # Create a container for matched criteria with custom styling
-    st.markdown("""
-        <style>
-        .criteria-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin: 15px 0;
-        }
-        .criteria-item {
-            padding: 12px 15px;
-            border-radius: 8px;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-        }
-        .criteria-item::before {
-            content: "✓";
-            font-weight: bold;
-            margin-right: 10px;
-            font-size: 18px;
-        }
-        .criteria-blue {
-            background-color: #e6f3ff;
-            border: 1px solid #b3d9ff;
-        }
-        .criteria-blue::before {
-            color: #0066cc;
-        }
-        .criteria-pink {
-            background-color: #ffe6f3;
-            border: 1px solid #ffb3d9;
-        }
-        .criteria-pink::before {
-            color: #cc0066;
-        }
-        .criteria-green {
-            background-color: #e6ffe6;
-            border: 1px solid #b3ffb3;
-        }
-        .criteria-green::before {
-            color: #006600;
-        }
-        .criteria-orange {
-            background-color: #fff2e6;
-            border: 1px solid #ffd9b3;
-        }
-        .criteria-orange::before {
-            color: #cc6600;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # Create the criteria grid
-    criteria_html = '<div class="criteria-grid">'
-    colors = ['blue', 'pink', 'green', 'orange']
-    for idx, (key, value) in enumerate(match_criteria.items()):
-        if isinstance(value, bool) and value:
-            color_class = f'criteria-{colors[idx % len(colors)]}'
-            criteria_html += f'<div class="criteria-item {color_class}">{key.replace("_", " ").capitalize()}</div>'
-    criteria_html += '</div>'
-    
-    st.markdown(criteria_html, unsafe_allow_html=True)
+    # Render matched criteria using the new components
+    render_property_criteria(property_details)
 
     # Display property details
     st.markdown("#### Property Details")

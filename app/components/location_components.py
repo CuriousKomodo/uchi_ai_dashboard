@@ -6,6 +6,7 @@ from utils.demographic_utils import (
     get_deprivation_rate_color,
     get_crime_rate_color
 )
+from app.components.criteria_components import render_lifestyle_criteria
 
 def render_transport_info(property_details):
     """Render transport information in a bordered container."""
@@ -65,7 +66,8 @@ def render_neighborhood_statistics(property_details):
                 st.metric("Degree Rate", degree_rate)
         
         if neighborhood_information and neighborhood_information.get('asking_price') is not None:
-            st.markdown(f"**Avg. Asking Price for {property_details['num_bedrooms']} bedrooms**: {neighborhood_information['asking_price']}")
+            st.markdown(f"**Avg. Asking Price for {property_details['num_bedrooms']} bedrooms**: £{neighborhood_information['asking_price']}")
+
 
 def render_places_of_interest(property_details):
     """Render places of interest in a grid layout."""
@@ -142,7 +144,7 @@ def render_nearby_supermarkets_list(nearby_supermarkets):
                     # Display image if available
                     if supermarket.get('photo_uri'):
                         try:
-                            st.image(supermarket['photo_uri'], width=100)
+                            st.image(supermarket['photo_uri'], width=50)
                         except Exception as e:
                             print(f"Error loading supermarket image: {str(e)}")
                     
@@ -202,6 +204,9 @@ def render_location_tab(property_details):
     
     with col2:
         render_transport_info(property_details)
+
+    # Render lifestyle criteria first (neighborhood-related)
+    render_lifestyle_criteria(property_details)
 
     # Render all location-related sections
     render_neighborhood_statistics(property_details)

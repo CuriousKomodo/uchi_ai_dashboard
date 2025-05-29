@@ -95,6 +95,7 @@ def show_dashboard(firestore: FireStore):
                 'stations': prop.get('stations', []),
                 'match_output': prop.get('match_output', {}),
                 'matched_criteria': prop.get('matched_criteria', {}),
+                'matched_lifestyle_criteria': prop.get('matched_lifestyle_criteria', {}),
                 "prop_property_criteria_matched": prop.get('prop_property_criteria_matched', 0),
                 'journey': prop.get('journey', {}),
                 'deprivation': prop.get('deprivation'),
