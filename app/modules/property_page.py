@@ -3,7 +3,7 @@ import streamlit as st
 
 from connection.firestore import FireStore
 from app.modules.chat import show_chat_interface
-from app.components.criteria_components import render_property_criteria
+from app.components.criteria_components import render_property_criteria, render_lifestyle_criteria
 
 from utils.text_utils import extract_conclusion
 from utils.demographic_utils import (
@@ -49,6 +49,7 @@ def render_property_details_tab(property_details):
     """Render the Property Details tab content."""
     # Render matched criteria using the new components
     render_property_criteria(property_details)
+    render_lifestyle_criteria(property_details)
 
     # Display property details
     st.markdown("#### Property Details")
@@ -122,12 +123,19 @@ def render_property_details_tab(property_details):
         st.markdown("#### Floorplan")
         with st.container(border=True, height=500):
             st.markdown('<div class="bordered-box">', unsafe_allow_html=True)
-            if property_details.get('floorplans') and isinstance(property_details["floorplans"], list):
-                floorplan = property_details["floorplans"][0]  # Get the first floorplan
-                if floorplan.get('url'):
-                    st.image(floorplan['url'], caption=floorplan.get('caption', 'Floorplan'), width=300)
-                    if floorplan.get('url'):
-                        st.markdown(f"[View Full Size Floorplan]({floorplan['url']})")
+            if property_details.get('floorplan'):
+                try:
+                    # Handle base64 string floorplan
+                    floorplan_data = property_details['floorplan']
+                    if isinstance(floorplan_data, str):
+                        # Decode base64 string and display
+                        decoded_floorplan = base64.b64decode(floorplan_data)
+                        st.image(decoded_floorplan, caption="Floorplan", width=300)
+                    else:
+                        st.markdown("Ask agent for floorplan")
+                except Exception as e:
+                    st.markdown(f"Ask agent for floorplan")
+                    print(f"Floorplan display error: {str(e)}")
             else:
                 st.info("Ask Agent for floorplan")
             st.markdown('</div>', unsafe_allow_html=True)

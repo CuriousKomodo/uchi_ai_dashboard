@@ -84,12 +84,12 @@ def show_dashboard(firestore: FireStore):
             # Ensure we have all the required fields
             property_data = {
                 'property_id': prop['property_id'],
-                'postcode': prop['postcode'],
+                'postcode': prop.get('postcode'),
                 'address': prop['address'],
                 'price': prop['price'],
                 'num_bedrooms': prop['num_bedrooms'],
                 'compressed_images': prop.get('compressed_images', []),
-                'floorplans': prop.get('floorplan', []),
+                'floorplan': prop.get('floorplan', []),
                 'latitude': prop.get('latitude'),
                 'longitude': prop.get('longitude'),
                 'stations': prop.get('stations', []),
