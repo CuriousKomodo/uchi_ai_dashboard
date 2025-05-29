@@ -142,7 +142,7 @@ def render_nearby_supermarkets_list(nearby_supermarkets):
                     # Display image if available
                     if supermarket.get('photo_uri'):
                         try:
-                            st.image(supermarket['photo_uri'], width=200)
+                            st.image(supermarket['photo_uri'], width=100)
                         except Exception as e:
                             print(f"Error loading supermarket image: {str(e)}")
                     
@@ -157,6 +157,34 @@ def render_nearby_supermarkets_list(nearby_supermarkets):
                     
                     if 'place_uri' in supermarket:
                         st.markdown(f"[View on Google Maps]({supermarket['place_uri']})")
+
+def render_nearby_green_spaces_list(nearby_green_spaces):
+    """Render nearby green spaces in a list format."""
+    if nearby_green_spaces:
+        st.markdown("### 🌳 Nearby Green Spaces")
+        
+        cols = st.columns(3)
+        for idx, green_space in enumerate(nearby_green_spaces):
+            with cols[idx % 3]:
+                with st.container(border=True, height=280):
+                    st.markdown(f"**{green_space['name']}**")
+                    
+                    if 'rating' in green_space:
+                        st.markdown(f"**Rating:** ⭐ {green_space['rating']}")
+                    
+                    if 'address' in green_space:
+                        # Show shortened address
+                        address_parts = green_space['address'].split(',')
+                        short_address = ', '.join(address_parts[:2]) if len(address_parts) > 2 else green_space['address']
+                        st.markdown(f"**Address:** {short_address}")
+                    
+                    # Show types if available (e.g., park, garden, nature reserve)
+                    if 'types' in green_space and green_space['types']:
+                        types_str = ', '.join(green_space['types'][:2])  # Show first 2 types
+                        st.markdown(f"**Type:** {types_str}")
+                    
+                    if 'place_uri' in green_space:
+                        st.markdown(f"[View on Google Maps]({green_space['place_uri']})")
 
 def render_location_tab(property_details):
     """Render the Location tab content."""
@@ -179,10 +207,12 @@ def render_location_tab(property_details):
     render_neighborhood_statistics(property_details)
     render_places_of_interest(property_details)
     
-    # Get neighborhood info for schools and supermarkets
+    # Get neighborhood info for schools, supermarkets, and green spaces
     neighborhood_info = property_details.get("neighborhood_info", {})
     nearby_schools = neighborhood_info.get("nearby_schools", [])
     nearby_supermarkets = neighborhood_info.get("nearby_supermarkets", [])
+    nearby_green_spaces = neighborhood_info.get("nearby_green_spaces", [])
     
     render_nearby_schools_list(nearby_schools)
-    render_nearby_supermarkets_list(nearby_supermarkets) 
+    render_nearby_supermarkets_list(nearby_supermarkets)
+    render_nearby_green_spaces_list(nearby_green_spaces) 

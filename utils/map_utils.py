@@ -73,6 +73,37 @@ def add_supermarket_markers(map_obj, supermarkets):
             ).add_to(map_obj)
 
 
+def add_green_space_markers(map_obj, green_spaces):
+    """Add green space markers to the map."""
+    for green_space in green_spaces:
+        # Try to get coordinates from place_uri first
+        lat, lng = extract_coordinates_from_place_uri(green_space.get('place_uri', ''))
+
+        # If no coordinates from URI, try geocoding the address
+        if lat is None or lng is None:
+            lat, lng = geocode_address(green_space.get('address', ''))
+
+        # Only add marker if we have coordinates
+        if lat is not None and lng is not None:
+            popup_content = f"""
+                <div style='min-width: 250px; max-width: 300px;'>
+                    <h4 style='margin: 0 0 10px 0; color: #228B22;'>{green_space['name']}</h4>
+                    <p style='margin: 0 0 5px 0;'>
+                        {f"<strong>Rating:</strong> ⭐ {green_space['rating']}<br>" if green_space.get('rating') else ''}
+                        {f"<strong>Type:</strong> {', '.join(green_space['types'][:2])}<br>" if green_space.get('types') else ''}
+                        <strong>Address:</strong> {green_space.get('address', 'N/A')}
+                    </p>
+                    {f"<a href='{green_space['place_uri']}' target='_blank' style='color: #0066cc; text-decoration: none;'>View on Google Maps</a>" if green_space.get('place_uri') else ''}
+                </div>
+            """
+
+            folium.Marker(
+                [lat, lng],
+                popup=folium.Popup(popup_content, max_width=350),
+                icon=folium.Icon(color='darkgreen', icon='tree', prefix='fa')
+            ).add_to(map_obj)
+
+
 def create_property_map(property_details):
     """Create and return a folium map with all markers."""
     # Create map centered on property location or central London
@@ -91,8 +122,10 @@ def create_property_map(property_details):
     neighborhood_info = property_details.get("neighborhood_info", {})
     nearby_schools = neighborhood_info.get("nearby_schools", [])
     nearby_supermarkets = neighborhood_info.get("nearby_supermarkets", [])
+    nearby_green_spaces = neighborhood_info.get("nearby_green_spaces", [])
     
     add_school_markers(m, nearby_schools)
     add_supermarket_markers(m, nearby_supermarkets)
+    add_green_space_markers(m, nearby_green_spaces)
     
     return m 
