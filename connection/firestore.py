@@ -193,6 +193,8 @@ class FireStore:
         for doc in properties:
             property_info = doc.to_dict()
             property_id = property_info["id"]
+            if property_id != 160583351:
+                continue
             property_info.pop("property_details")
             extraction_query = extraction_ref.where(
                 filter=FieldFilter('property_id', '==', property_id)
@@ -261,6 +263,8 @@ class FireStore:
                 property_id = prop["property_id"]
                 if property_id in properties:
                     property_data = properties[property_id]
+                    if property_id != 160583351:
+                        continue
 
                     latitude = None
                     longitude = None
@@ -276,6 +280,7 @@ class FireStore:
                         if council_tax and "value" in council_tax:
                             council_tax_band = council_tax["value"]
 
+                    # Prop only contains shortlist attributes, need enriching with the property details.
                     prop.update({
                         "address": property_data.get("address"),
                         "postcode": property_data.get("postcode"),
@@ -361,10 +366,12 @@ class FireStore:
             property_details = property_data.get("property_details", {})
             
             # Get extractions if available
-            extractions_doc = self.extraction_collection.where("property_id", "==", property_id).get()
+            extractions_doc = self.extraction_collection.where("property_id", "==", int(property_id)).get()
             extractions = {}
             if extractions_doc:
                 extractions = extractions_doc[0].to_dict()
+                if "results" in extractions:
+                    extractions = extractions["results"]
             
             # Combine all data
             result = {
@@ -375,7 +382,7 @@ class FireStore:
                 "num_bedrooms": property_data.get("num_bedrooms"),
                 "stations": property_data.get("stations"),
                 "compressed_images": extractions.get("compressed_images", []),  # Get images from property_details
-                "floorplans": property_details.get("floorplans", []),
+                "floorplans": extractions.get("floorplans", []) or extractions.get("floorplan", []),
             }
             
             # Add location data if available
@@ -388,10 +395,13 @@ class FireStore:
             # Add sales info if available
             if property_details.get("salesInfo"):
                 result.update(property_details["salesInfo"])
+
+            if property_details.get("analyticsInfo"):
+                result.update(property_details["analyticsInfo"])
             
             # Add extraction results if available
             if extractions:
-                result.update(extractions.get("results", {}))
+                result.update(extractions)
             
             return result
             

@@ -89,12 +89,13 @@ def show_dashboard(firestore: FireStore):
                 'price': prop['price'],
                 'num_bedrooms': prop['num_bedrooms'],
                 'compressed_images': prop.get('compressed_images', []),
-                'floorplans': prop.get('floorplans', []),
+                'floorplans': prop.get('floorplan', []),
                 'latitude': prop.get('latitude'),
                 'longitude': prop.get('longitude'),
                 'stations': prop.get('stations', []),
                 'match_output': prop.get('match_output', {}),
                 'matched_criteria': prop.get('matched_criteria', {}),
+                "prop_property_criteria_matched": prop.get('prop_property_criteria_matched', 0),
                 'journey': prop.get('journey', {}),
                 'deprivation': prop.get('deprivation'),
                 'places_of_interest': prop.get('places_of_interest', []),
@@ -106,6 +107,11 @@ def show_dashboard(firestore: FireStore):
                 'tenure_type': prop.get('tenure_type'),
                 'service_charge': prop.get('annualServiceCharge'),
                 'length_of_lease': prop.get('lengthOfLease'),
+
+                # AI extracted
+                "neighborhood_info": prop.get('neighborhood_info', {}),
+                "description_analysis": prop.get('description_analysis', {}),
+                "image_analysis": prop.get('image_analysis', {}),
             }
             st.session_state.property_shortlist[prop['property_id']] = property_data
 
@@ -217,7 +223,12 @@ def show_dashboard(firestore: FireStore):
                                 try:
                                     # Decode the first image if not already decoded
                                     if prop['property_id'] not in st.session_state.decoded_images:
-                                        decoded_image = base64.b64decode(prop['compressed_images'][0])
+
+                                        if isinstance(prop['compressed_images'][0], str):
+                                            decoded_image = base64.b64decode(prop['compressed_images'][0])  # FIXME: backward compatible
+                                        elif isinstance(prop['compressed_images'][0], dict):
+                                            decoded_image = base64.b64decode(prop['compressed_images'][0]["base64"])
+
                                         st.session_state.decoded_images[prop['property_id']] = [decoded_image]
 
                                     st.image(
