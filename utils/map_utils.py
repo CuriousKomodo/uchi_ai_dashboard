@@ -127,4 +127,4 @@ def create_property_map(property_details):
     add_supermarket_markers(m, nearby_supermarkets)
     add_green_space_markers(m, nearby_green_spaces)
     
-    return m 
+    return m
