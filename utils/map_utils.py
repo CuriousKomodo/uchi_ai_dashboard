@@ -57,7 +57,6 @@ def add_supermarket_markers(map_obj, supermarkets):
             popup_content = f"""
                 <div style='min-width: 250px; max-width: 300px;'>
                     <h4 style='margin: 0 0 10px 0; color: #2E8B57;'>{supermarket['name']}</h4>
-                    {f"<img src='{supermarket['photo_uri']}' style='width: 100%; max-width: 200px; height: auto; border-radius: 5px; margin-bottom: 10px;' />" if supermarket.get('photo_uri') else ''}
                     <p style='margin: 0 0 5px 0;'>
                         <strong>Rating:</strong> ⭐ {supermarket.get('rating', 'N/A')}<br>
                         <strong>Address:</strong> {supermarket.get('address', 'N/A')}
