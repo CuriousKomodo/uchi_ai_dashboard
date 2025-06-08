@@ -1,6 +1,8 @@
 import base64
 import streamlit as st
 
+from utils.draft import draft_enquiry
+
 from connection.firestore import FireStore
 from app.modules.chat import show_chat_interface
 from app.components.criteria_components import render_property_criteria, render_lifestyle_criteria
@@ -163,6 +165,69 @@ def render_property_details_tab(property_details):
                 st.info("EPC not available")
             st.markdown('</div>', unsafe_allow_html=True)
 
+def render_property_header(property_details, property_id):
+    """Render the property header with title, price, bedrooms, and draft enquiry button."""
+    # Property title
+    st.title(property_details['address'])
+    
+    # Price, bedrooms, and draft enquiry button in the same row
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.markdown(f"### £{property_details['price']:,} | {property_details['num_bedrooms']} bedrooms")
+    
+    with col2:
+        if st.button(
+            "✉️ Draft enquiry",
+            key=f"draft_enquiry_{property_id}",
+            type="primary"
+        ):
+            # Generate draft message
+            message = draft_enquiry(
+                property_details=property_details,
+                customer_name=st.session_state.get('first_name', 'Customer'),
+            )
+            # Store in session state
+            st.session_state[f"draft_msg_{property_id}"] = message
+            st.session_state[f"show_draft_{property_id}"] = True
+
+def render_draft_expander(property_id):
+    """Render the draft enquiry expander if it should be shown."""
+    if st.session_state.get(f"show_draft_{property_id}", False):
+        with st.expander("✉️ Edit your enquiry", expanded=True):
+            # Get the draft message
+            draft_message = st.session_state.get(f"draft_msg_{property_id}", "")
+            
+            # Text area for editing
+            edited_message = st.text_area(
+                "Your enquiry message:",
+                value=draft_message,
+                height=200,
+                key=f"textarea_{property_id}"
+            )
+            
+            # Action buttons
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                st.link_button(
+                    "📧 Send enquiry", 
+                    url=f"https://www.rightmove.co.uk/property-for-sale/contactBranch.html?propertyId={property_id}",
+                    use_container_width=True
+                )
+            
+            with col2:
+                if st.button("❌ Close", key=f"close_draft_{property_id}", use_container_width=True):
+                    st.session_state[f"show_draft_{property_id}"] = False
+                    st.rerun()
+            
+            st.info("💡 To copy the text above, select all (Ctrl+A / Cmd+A) and copy (Ctrl+C / Cmd+C)")
+
+def general_buttons(property_id, property_details):
+    _, col1 = st.columns([5, 1])
+    with col1:
+        st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{property_id}")
+
 def show_property_page(firestore: FireStore):
     """Show the property detail page."""
     # Get property ID from query parameters
@@ -190,9 +255,11 @@ def show_property_page(firestore: FireStore):
         st.query_params.clear()
         st.rerun()
 
-    # Property header
-    st.title(property_details['address'])
-    st.markdown(f"### £{property_details['price']:,} | {property_details['num_bedrooms']} bedrooms")
+    # Property header with draft enquiry button
+    render_property_header(property_details, property_id)
+    
+    # Draft enquiry expander (appears right after header)
+    render_draft_expander(property_id)
 
     # Display images in a 2x4 grid
     render_property_images(property_details, property_id)
@@ -200,8 +267,11 @@ def show_property_page(firestore: FireStore):
     # Render AI notes
     render_ai_notes(property_details)
 
+    # General buttons to visit original source
+    general_buttons(property_id, property_details)
+
     # Property details in tabs
-    tab1, tab2, tab3 = st.tabs(["Property Details", "Location", "Chat with AI"])
+    tab1, tab2 = st.tabs(["Property Details", "Location"])
 
     with tab1:
         render_property_details_tab(property_details)
@@ -209,5 +279,5 @@ def show_property_page(firestore: FireStore):
     with tab2:
         render_location_tab(property_details)
 
-    with tab3:
-        show_chat_interface()
+    # with tab3:
+    #     show_chat_interface()

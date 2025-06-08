@@ -51,24 +51,6 @@ def update_cache_access_time(property_id: str):
     """Update the last access time for a property's cache."""
     st.session_state.last_access_time[property_id] = time.time()
 
-def on_draft_enquiry(
-        property_id: str,
-        property_details: Dict,
-        customer_name: str,
-        customer_intent: Optional[str] = ""
-):
-    expander_key = f"expander_{property_id}"
-    message = draft_enquiry(
-        property_details=property_details,
-        customer_name=customer_name,
-        customer_intent=customer_intent,
-    )
-
-    # store your draft and expand flag in session_state
-    st.session_state[f"draft_msg_{property_id}"] = message
-    st.session_state[expander_key] = True
-
-
 def load_main_dashboard():
 
     st.title("🏡 Uchi: AI-Powered Real Estate Assistant")

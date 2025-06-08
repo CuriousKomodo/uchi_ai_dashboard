@@ -9,23 +9,6 @@ from app.components.preferences_view import show_preferences_section
 import base64
 import json
 
-def on_draft_enquiry(
-        property_id: str,
-        property_details: dict,
-        customer_name: str,
-        customer_intent: str = ""
-):
-    expander_key = f"expander_{property_id}"
-    message = draft_enquiry(
-        property_details=property_details,
-        customer_name=customer_name,
-        customer_intent=customer_intent,
-    )
-
-    # store your draft and expand flag in session_state
-    st.session_state[f"draft_msg_{property_id}"] = message
-    st.session_state[expander_key] = True
-
 def login(firestore: FireStore):
     """Handle user login."""
     st.title("Log into Uchi Dashboard")
