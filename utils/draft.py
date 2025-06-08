@@ -37,9 +37,11 @@ def draft_enquiry(
         property_details: Dict,
         customer_name: str,
 ):
-    address = property_details.get("address")
-    template = f"Hi, \n I am interested in this property at {address} and would like to request for a viewing. Best, \n{customer_name}"
-    return template
+    if property_details.get("draft"):
+        draft = property_details.get("draft").replace("{customer_name}", customer_name)
+    else:
+        draft = f"Hi I am interested in this property and would like to request for a viewing. Best, {customer_name}"
+    return draft
 
 def create_copy_button(text_to_copy):
     button_id = "copyButton" + text_to_copy

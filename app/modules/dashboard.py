@@ -93,6 +93,8 @@ def show_dashboard(firestore: FireStore):
                 'length_of_lease': prop.get('lengthOfLease'),
 
                 # AI extracted
+                "draft": prop.get('draft', {}),
+                "missing_info": prop.get('missing_info', {}),
                 "neighborhood_info": prop.get('neighborhood_info', {}),
                 "description_analysis": prop.get('description_analysis', {}),
                 "image_analysis": prop.get('image_analysis', {}),
