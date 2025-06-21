@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def draft_enquiry(
+def draft_enquiry_using_endpoint(
         property_details: Dict,
         customer_name: str,
         customer_intent: Optional[str] = ""
@@ -33,6 +33,33 @@ def draft_enquiry(
         return default_message
 
 
+def draft_enquiry(
+        property_details: Dict,
+        customer_name: str,
+):
+    if property_details.get("draft"):
+        draft = property_details.get("draft").replace("{customer_name}", customer_name)
+    else:
+        draft = f"Hi I am interested in this property and would like to request for a viewing. Best, {customer_name}"
+    return draft
+
+def create_copy_button(text_to_copy):
+    button_id = "copyButton" + text_to_copy
+
+    button_html = f"""<button id="{button_id}">Copy</button>
+    <script>
+    document.getElementById("{button_id}").onclick = function() {{
+        navigator.clipboard.writeText("{text_to_copy}").then(function() {{
+            console.log('Async: Copying to clipboard was successful!');
+        }}, function(err) {{
+            console.error('Async: Could not copy text: ', err);
+        }});
+    }}
+    </script>"""
+
+    st.markdown(button_html, unsafe_allow_html=True)
+
+
 def on_draft_enquiry(
         property_id: str,
         property_details: Dict,
@@ -40,11 +67,12 @@ def on_draft_enquiry(
         customer_intent: Optional[str] = ""
 ):
     expander_key = f"expander_{property_id}"
-    message = draft_enquiry(
-        property_details=property_details,
-        customer_name=customer_name,
-        customer_intent=customer_intent,
-    )
+    # message = draft_enquiry(
+    #     property_details=property_details,
+    #     customer_name=customer_name,
+    #     customer_intent=customer_intent,
+    # )
+    message = "GENERAL ENQUIRY"
 
     # store your draft and expand flag in session_state
     st.session_state[f"draft_msg_{property_id}"] = message
@@ -59,6 +87,7 @@ def on_draft_enquiry(
                 height=300,
                 key=f"textarea_{property_id}"
             )
+            create_copy_button(edited_message)
             # Optionally, add a submit button here
             # if st.button("Submit Enquiry", key=f"submit_{prop['property_id']}"):
             #     st.success("Your enquiry has been submitted!")
