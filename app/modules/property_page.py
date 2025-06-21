@@ -171,7 +171,7 @@ def render_property_header(property_details, property_id):
     st.title(property_details['address'])
     
     # Price, bedrooms, and draft enquiry button in the same row
-    col1, col2, col3 = st.columns([4, 1, 1])
+    col1, col2, col3 = st.columns([5, 1, 1])
     
     with col1:
         st.markdown(f"### £{property_details['price']:,} | {property_details['num_bedrooms']} bedrooms")
