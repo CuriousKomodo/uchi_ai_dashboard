@@ -1,5 +1,6 @@
 import folium
 from utils.location_utils import extract_coordinates_from_place_uri, geocode_address
+from utils.place_utils import get_place_icon_and_color
 
 def add_property_marker(map_obj, latitude, longitude, address):
     """Add property marker to the map."""
@@ -103,6 +104,40 @@ def add_green_space_markers(map_obj, green_spaces):
             ).add_to(map_obj)
 
 
+def add_places_of_interest_markers(map_obj, places_of_interest):
+    """Add places of interest markers to the map."""
+    for place in places_of_interest:
+        # Try to get coordinates from place_uri first
+        lat, lng = extract_coordinates_from_place_uri(place.get('place_uri', ''))
+
+        # If no coordinates from URI, try geocoding the address
+        if lat is None or lng is None:
+            lat, lng = geocode_address(place.get('address', ''))
+
+        # Only add marker if we have coordinates
+        if lat is not None and lng is not None:
+            # Determine icon and color based on place type
+            icon_name, icon_color = get_place_icon_and_color(place.get('types', []))
+            
+            popup_content = f"""
+                <div style='min-width: 250px; max-width: 300px;'>
+                    <h4 style='margin: 0 0 10px 0; color: {icon_color};'>{place['name']}</h4>
+                    <p style='margin: 0 0 5px 0;'>
+                        {f"<strong>Rating:</strong> ⭐ {place['rating']}<br>" if place.get('rating') else ''}
+                        {f"<strong>Type:</strong> {', '.join(place['types'][:2])}<br>" if place.get('types') else ''}
+                        {f"<strong>Address:</strong> {place['address']}<br>" if place.get('address') else ''}
+                    </p>
+                    {f"<a href='{place['place_uri']}' target='_blank' style='color: #0066cc; text-decoration: none;'>View on Google Maps</a>" if place.get('place_uri') else ''}
+                </div>
+            """
+
+            folium.Marker(
+                [lat, lng],
+                popup=folium.Popup(popup_content, max_width=350),
+                icon=folium.Icon(color=icon_color, icon=icon_name, prefix='fa')
+            ).add_to(map_obj)
+
+
 def create_property_map(property_details):
     """Create and return a folium map with all markers."""
     # Create map centered on property location or central London
@@ -126,5 +161,9 @@ def create_property_map(property_details):
     add_school_markers(m, nearby_schools)
     add_supermarket_markers(m, nearby_supermarkets)
     add_green_space_markers(m, nearby_green_spaces)
+    
+    # Add places of interest
+    places_of_interest = property_details.get("places_of_interest", [])
+    add_places_of_interest_markers(m, places_of_interest)
     
     return m

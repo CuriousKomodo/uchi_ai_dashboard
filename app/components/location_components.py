@@ -1,6 +1,7 @@
 import streamlit as st
 from streamlit_folium import folium_static
 from utils.map_utils import create_property_map
+from utils.place_utils import get_place_icon_and_color, get_place_emoji
 from utils.demographic_utils import (
     get_population_growth_color,
     get_deprivation_rate_color,
@@ -71,19 +72,58 @@ def render_neighborhood_statistics(property_details):
 
 def render_places_of_interest(property_details):
     """Render places of interest in a grid layout."""
-    st.markdown("### 🌳Nearby places that might be interesting")
+    st.markdown("### 🌟 Nearby Places of Interest")
     st.markdown("within 1 km 🚶🏻‍")
+    
     if property_details.get("places_of_interest"):
+        places = property_details["places_of_interest"]
+        
+        # Show summary of place types
+        place_types = {}
+        for place in places:
+            types = place.get('types', [])
+            for place_type in types[:2]:  # Take first 2 types
+                place_types[place_type] = place_types.get(place_type, 0) + 1
+        
+        if place_types:
+            st.markdown("**Found nearby:**")
+            type_summary = ", ".join([f"{count} {place_type}" for place_type, count in sorted(place_types.items(), key=lambda x: x[1], reverse=True)[:5]])
+            st.markdown(f"*{type_summary}*")
+        
         # Create a grid of cards for places of interest
         cols = st.columns(3)
-        for idx, place in enumerate(property_details["places_of_interest"]):
+        for idx, place in enumerate(places):
             with cols[idx % 3]:
-                with st.container(border=True):
-                    st.markdown(f"**{place['name']}**")
+                with st.container(border=True, height=200):
+                    # Get icon and color for the place type
+                    icon_name, icon_color = get_place_icon_and_color(place.get('types', []))
+                    
+                    # Display place name with emoji based on type
+                    emoji = get_place_emoji(place.get('types', []))
+                    st.markdown(f"**{emoji} {place['name']}**")
+                    
+                    # Display rating if available
                     if place.get("rating"):
-                        st.markdown(f"⭐ {place['rating']}")
+                        st.markdown(f"⭐ **{place['rating']}**")
+                    
+                    # Display types if available
                     if place.get("types"):
-                        st.markdown(f"*{', '.join(place['types'][:2])}*")
+                        types_str = ', '.join(place['types'][:2])  # Show first 2 types
+                        st.markdown(f"*{types_str}*")
+                    
+                    # Display address if available
+                    if place.get("address"):
+                        # Show shortened address
+                        address_parts = place['address'].split(',')
+                        short_address = ', '.join(address_parts[:2]) if len(address_parts) > 2 else place['address']
+                        st.markdown(f"📍 {short_address}")
+                    
+                    # Add link to Google Maps if available
+                    if place.get('place_uri'):
+                        st.markdown(f"[🗺️ View on Google Maps]({place['place_uri']})")
+    else:
+        st.info("No places of interest data available for this property.")
+
 
 def render_nearby_schools_list(nearby_schools):
     """Render nearby schools in a list format."""
@@ -201,6 +241,42 @@ def render_location_tab(property_details):
     with col1:
         # Display the map
         folium_static(m, width=800, height=500)
+        
+        # Add map legend
+        st.markdown("### 🗺️ Map Legend")
+        legend_cols = st.columns(4)
+        
+        with legend_cols[0]:
+            st.markdown("""
+            **🏠 Property** - Red home icon  
+            **🏫 Schools** - Blue graduation cap  
+            **🛒 Supermarkets** - Green shopping cart  
+            **🌳 Green Spaces** - Dark green tree
+            """)
+        
+        with legend_cols[1]:
+            st.markdown("""
+            **🍽️ Restaurants** - Orange utensils  
+            **🛍️ Shopping** - Purple shopping bag  
+            **🎬 Entertainment** - Dark red film  
+            **💪 Sports/Gym** - Dark blue dumbbell
+            """)
+        
+        with legend_cols[2]:
+            st.markdown("""
+            **🏥 Healthcare** - Red medkit  
+            **🚌 Transport** - Dark green bus  
+            **🏛️ Cultural** - Cadet blue landmark  
+            **🙏 Religious** - Brown pray icon
+            """)
+        
+        with legend_cols[3]:
+            st.markdown("""
+            **🏦 Banking** - Dark green university  
+            **📮 Post Office** - Navy envelope  
+            **👶 Childcare** - Pink baby  
+            **📍 Other Places** - Gray map marker
+            """)
     
     with col2:
         render_transport_info(property_details)
