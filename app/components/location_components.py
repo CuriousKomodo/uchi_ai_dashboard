@@ -1,7 +1,7 @@
 import streamlit as st
 from streamlit_folium import folium_static
 from utils.map_utils import create_property_map
-from utils.place_utils import get_place_icon_and_color, get_place_emoji
+from utils.place_utils import get_place_icon_and_color, get_place_emoji, categorize_places
 from utils.demographic_utils import (
     get_population_growth_color,
     get_deprivation_rate_color,
@@ -70,8 +70,8 @@ def render_neighborhood_statistics(property_details):
             st.markdown(f"**Avg. Asking Price for {property_details['num_bedrooms']} bedrooms**: £{neighborhood_information['asking_price']}")
 
 
-def render_places_of_interest(property_details):
-    """Render places of interest in a grid layout."""
+def render_places_of_interest_by_category(property_details):
+    """Render places of interest organized by category using tables."""
     st.markdown("### 🌟 Nearby Places of Interest")
     st.markdown("within 1 km 🚶🏻‍")
     
@@ -90,148 +90,197 @@ def render_places_of_interest(property_details):
             type_summary = ", ".join([f"{count} {place_type}" for place_type, count in sorted(place_types.items(), key=lambda x: x[1], reverse=True)[:5]])
             st.markdown(f"*{type_summary}*")
         
-        # Create a grid of cards for places of interest
-        cols = st.columns(3)
-        for idx, place in enumerate(places):
-            with cols[idx % 3]:
-                with st.container(border=True, height=200):
-                    # Get icon and color for the place type
-                    icon_name, icon_color = get_place_icon_and_color(place.get('types', []))
-                    
-                    # Display place name with emoji based on type
-                    emoji = get_place_emoji(place.get('types', []))
-                    st.markdown(f"**{emoji} {place['name']}**")
-                    
-                    # Display rating if available
-                    if place.get("rating"):
-                        st.markdown(f"⭐ **{place['rating']}**")
-                    
-                    # Display types if available
-                    if place.get("types"):
-                        types_str = ', '.join(place['types'][:2])  # Show first 2 types
-                        st.markdown(f"*{types_str}*")
-                    
-                    # Display address if available
-                    if place.get("address"):
-                        # Show shortened address
-                        address_parts = place['address'].split(',')
-                        short_address = ', '.join(address_parts[:2]) if len(address_parts) > 2 else place['address']
-                        st.markdown(f"📍 {short_address}")
-                    
-                    # Add link to Google Maps if available
-                    if place.get('place_uri'):
-                        st.markdown(f"[🗺️ View on Google Maps]({place['place_uri']})")
+        # Categorize places
+        categorized_places = categorize_places(places)
+        
+        # Render each category as a table
+        for category, category_places in categorized_places.items():
+            st.markdown(f"#### {category} ({len(category_places)} places)")
+            
+            # Prepare table data
+            table_data = []
+            for place in category_places:
+                emoji = get_place_emoji(place.get('types', []))
+                name = f"{emoji} {place['name']}"
+                
+                rating = place.get('rating', 'N/A')
+                if rating != 'N/A':
+                    rating = f"⭐ {rating}"
+                
+                types_str = ', '.join(place.get('types', [])[:2]) if place.get('types') else 'N/A'
+                
+                address = place.get('address', 'N/A')
+                if address != 'N/A':
+                    # Show shortened address
+                    address_parts = address.split(',')
+                    address = ', '.join(address_parts[:2]) if len(address_parts) > 2 else address
+                
+                table_data.append({
+                    'Name': name,
+                    'Rating': rating,
+                    'Type': types_str,
+                    'Address': address,
+                    'Place URI': place.get('place_uri', ''),
+                    'Website URL': place.get('url', '')
+                })
+            
+            # Display table
+            if table_data:
+                st.dataframe(
+                    table_data,
+                    column_config={
+                        "Name": st.column_config.TextColumn("Name", width="medium"),
+                        "Rating": st.column_config.TextColumn("Rating", width="small"),
+                        "Type": st.column_config.TextColumn("Type", width="medium"),
+                        "Address": st.column_config.TextColumn("Address", width="large"),
+                        "Place URI": st.column_config.LinkColumn("Maps", width="small"),
+                        "Website URL": st.column_config.LinkColumn("Website", width="small")
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
     else:
         st.info("No places of interest data available for this property.")
 
 
 def render_nearby_schools_list(nearby_schools):
-    """Render nearby schools in a list format."""
+    """Render nearby schools in a table format."""
     if nearby_schools:
         st.markdown("### 🏫 Nearby Schools")
         
-        # Add custom CSS for outstanding schools
-        st.markdown("""
-            <style>
-            .outstanding-school {
-                background-color: #e6ffe6;
-                border: 2px solid #00cc00 !important;
-            }
-            .outstanding-badge {
-                background-color: #00cc00;
-                color: white;
-                padding: 2px 8px;
-                border-radius: 4px;
-                font-size: 12px;
-                margin-left: 8px;
-            }
-            </style>
-        """, unsafe_allow_html=True)
+        # Prepare table data
+        table_data = []
+        for school in nearby_schools:
+            # Check if school is outstanding
+            is_outstanding = str(school.get('rating', '')).lower() == 'outstanding'
+            name = school['name']
+            if is_outstanding:
+                name = f"🏆 {name} (Outstanding)"
+            else:
+                name = f"🏫 {name}"
+            
+            rating = school.get('rating', 'N/A')
+            if rating != 'N/A':
+                rating = f"⭐ {rating}"
+            
+            distance = f"{school.get('distance', 'N/A')} km"
+            school_type = school.get('state_or_independent', 'N/A')
+            
+            table_data.append({
+                'Name': name,
+                'Rating': rating,
+                'Distance': distance,
+                'Type': school_type,
+                'Website URL': school.get('url', '')
+            })
         
-        cols = st.columns(3)
-        for idx, school in enumerate(nearby_schools):
-            with cols[idx % 3]:
-                # Check if school is outstanding
-                is_outstanding = str(school.get('rating', '')).lower() == 'outstanding'
-                container_class = "outstanding-school" if is_outstanding else ""
-                
-                with st.container(border=True, height=250):
-                    # School name with outstanding badge if applicable
-                    if is_outstanding:
-                        st.markdown(f"**{school['name']}** <span class='outstanding-badge'>Outstanding</span>", unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"**{school['name']}**")
-                    
-                    st.markdown(f"**Distance:** {school['distance']} km")
-                    if 'rating' in school:
-                        st.markdown(f"**Rating:** {school['rating']}")
-                    if 'state_or_independent' in school:
-                        st.markdown(f"**Type:** {school['state_or_independent']}")
-                    if 'url' in school:
-                        st.markdown(f"[View School Website]({school['url']})")
+        # Display table
+        if table_data:
+            st.dataframe(
+                table_data,
+                column_config={
+                    "Name": st.column_config.TextColumn("Name", width="large"),
+                    "Rating": st.column_config.TextColumn("Rating", width="small"),
+                    "Distance": st.column_config.TextColumn("Distance", width="small"),
+                    "Type": st.column_config.TextColumn("Type", width="medium"),
+                    "Website URL": st.column_config.LinkColumn("Website", width="small")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
 
 def render_nearby_supermarkets_list(nearby_supermarkets):
-    """Render nearby supermarkets in a list format."""
+    """Render nearby supermarkets in a table format."""
     if nearby_supermarkets:
         st.markdown("### 🛒 Nearby Supermarkets")
         
-        cols = st.columns(3)
-        for idx, supermarket in enumerate(nearby_supermarkets):
-            with cols[idx % 3]:
-                with st.container(border=True, height=280):
-                    st.markdown(f"**{supermarket['name']}**")
-                    
-                    # Display image if available
-                    if supermarket.get('photo_uri'):
-                        try:
-                            st.image(supermarket['photo_uri'], width=50)
-                        except Exception as e:
-                            print(f"Error loading supermarket image: {str(e)}")
-                    
-                    if 'rating' in supermarket:
-                        st.markdown(f"**Rating:** ⭐ {supermarket['rating']}")
-                    
-                    if 'address' in supermarket:
-                        # Show shortened address
-                        address_parts = supermarket['address'].split(',')
-                        short_address = ', '.join(address_parts[:2]) if len(address_parts) > 2 else supermarket['address']
-                        st.markdown(f"**Address:** {short_address}")
-                    
-                    if 'place_uri' in supermarket:
-                        st.markdown(f"[View on Google Maps]({supermarket['place_uri']})")
+        # Prepare table data
+        table_data = []
+        for supermarket in nearby_supermarkets:
+            name = f"🛒 {supermarket['name']}"
+            
+            rating = supermarket.get('rating', 'N/A')
+            if rating != 'N/A':
+                rating = f"⭐ {rating}"
+            
+            address = supermarket.get('address', 'N/A')
+            if address != 'N/A':
+                # Show shortened address
+                address_parts = address.split(',')
+                address = ', '.join(address_parts[:2]) if len(address_parts) > 2 else address
+            
+            table_data.append({
+                'Name': name,
+                'Rating': rating,
+                'Address': address,
+                'Maps URL': supermarket.get('place_uri', '')
+            })
+        
+        # Display table
+        if table_data:
+            st.dataframe(
+                table_data,
+                column_config={
+                    "Name": st.column_config.TextColumn("Name", width="large"),
+                    "Rating": st.column_config.TextColumn("Rating", width="small"),
+                    "Address": st.column_config.TextColumn("Address", width="large"),
+                    "Maps URL": st.column_config.LinkColumn("Maps", width="small")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
 
 def render_nearby_green_spaces_list(nearby_green_spaces):
-    """Render nearby green spaces in a list format."""
+    """Render nearby green spaces in a table format."""
     if nearby_green_spaces:
         st.markdown("### 🌳 Nearby Green Spaces")
         
-        cols = st.columns(3)
-        for idx, green_space in enumerate(nearby_green_spaces):
-            with cols[idx % 3]:
-                with st.container(border=True, height=280):
-                    st.markdown(f"**{green_space['name']}**")
-                    
-                    if 'rating' in green_space:
-                        st.markdown(f"**Rating:** ⭐ {green_space['rating']}")
-                    
-                    if 'address' in green_space:
-                        # Show shortened address
-                        address_parts = green_space['address'].split(',')
-                        short_address = ', '.join(address_parts[:2]) if len(address_parts) > 2 else green_space['address']
-                        st.markdown(f"**Address:** {short_address}")
-                    
-                    # Show types if available (e.g., park, garden, nature reserve)
-                    if 'types' in green_space and green_space['types']:
-                        types_str = ', '.join(green_space['types'][:2])  # Show first 2 types
-                        st.markdown(f"**Type:** {types_str}")
-                    
-                    if 'place_uri' in green_space:
-                        st.markdown(f"[View on Google Maps]({green_space['place_uri']})")
+        # Prepare table data
+        table_data = []
+        for green_space in nearby_green_spaces:
+            name = f"🌳 {green_space['name']}"
+            
+            rating = green_space.get('rating', 'N/A')
+            if rating != 'N/A':
+                rating = f"⭐ {rating}"
+            
+            types_str = ', '.join(green_space.get('types', [])[:2]) if green_space.get('types') else 'N/A'
+            
+            address = green_space.get('address', 'N/A')
+            if address != 'N/A':
+                # Show shortened address
+                address_parts = address.split(',')
+                address = ', '.join(address_parts[:2]) if len(address_parts) > 2 else address
+            
+            table_data.append({
+                'Name': name,
+                'Rating': rating,
+                'Type': types_str,
+                'Address': address,
+                'Maps URL': green_space.get('place_uri', '')
+            })
+        
+        # Display table
+        if table_data:
+            st.dataframe(
+                table_data,
+                column_config={
+                    "Name": st.column_config.TextColumn("Name", width="large"),
+                    "Rating": st.column_config.TextColumn("Rating", width="small"),
+                    "Type": st.column_config.TextColumn("Type", width="medium"),
+                    "Address": st.column_config.TextColumn("Address", width="large"),
+                    "Maps URL": st.column_config.LinkColumn("Maps", width="small")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
 
 def render_location_tab(property_details):
     """Render the Location tab content."""
-    st.markdown("### Location Information")
+    # Render all location-related sections
+    render_neighborhood_statistics(property_details)
 
+    st.markdown("### Location Information")
     # Create the map with all markers
     m = create_property_map(property_details)
     
@@ -243,40 +292,40 @@ def render_location_tab(property_details):
         folium_static(m, width=800, height=500)
         
         # Add map legend
-        st.markdown("### 🗺️ Map Legend")
-        legend_cols = st.columns(4)
-        
-        with legend_cols[0]:
-            st.markdown("""
-            **🏠 Property** - Red home icon  
-            **🏫 Schools** - Blue graduation cap  
-            **🛒 Supermarkets** - Green shopping cart  
-            **🌳 Green Spaces** - Dark green tree
-            """)
-        
-        with legend_cols[1]:
-            st.markdown("""
-            **🍽️ Restaurants** - Orange utensils  
-            **🛍️ Shopping** - Purple shopping bag  
-            **🎬 Entertainment** - Dark red film  
-            **💪 Sports/Gym** - Dark blue dumbbell
-            """)
-        
-        with legend_cols[2]:
-            st.markdown("""
-            **🏥 Healthcare** - Red medkit  
-            **🚌 Transport** - Dark green bus  
-            **🏛️ Cultural** - Cadet blue landmark  
-            **🙏 Religious** - Brown pray icon
-            """)
-        
-        with legend_cols[3]:
-            st.markdown("""
-            **🏦 Banking** - Dark green university  
-            **📮 Post Office** - Navy envelope  
-            **👶 Childcare** - Pink baby  
-            **📍 Other Places** - Gray map marker
-            """)
+        # st.markdown("### 🗺️ Map Legend")
+        # legend_cols = st.columns(4)
+        #
+        # with legend_cols[0]:
+        #     st.markdown("""
+        #     **🏠 Property** - Red home icon
+        #     **🏫 Schools** - Blue graduation cap
+        #     **🛒 Supermarkets** - Green shopping cart
+        #     **🌳 Green Spaces** - Dark green tree
+        #     """)
+        #
+        # with legend_cols[1]:
+        #     st.markdown("""
+        #     **🍽️ Restaurants** - Orange utensils
+        #     **🛍️ Shopping** - Purple shopping bag
+        #     **🎬 Entertainment** - Dark red film
+        #     **💪 Sports/Gym** - Dark blue dumbbell
+        #     """)
+        #
+        # with legend_cols[2]:
+        #     st.markdown("""
+        #     **🏥 Healthcare** - Red medkit
+        #     **🚌 Transport** - Dark green bus
+        #     **🏛️ Cultural** - Cadet blue landmark
+        #     **🙏 Religious** - Brown pray icon
+        #     """)
+        #
+        # with legend_cols[3]:
+        #     st.markdown("""
+        #     **🏦 Banking** - Dark green university
+        #     **📮 Post Office** - Navy envelope
+        #     **👶 Childcare** - Pink baby
+        #     **📍 Other Places** - Gray map marker
+        #     """)
     
     with col2:
         render_transport_info(property_details)
@@ -284,10 +333,7 @@ def render_location_tab(property_details):
     # Render lifestyle criteria first (neighborhood-related)
     render_lifestyle_criteria(property_details)
 
-    # Render all location-related sections
-    render_neighborhood_statistics(property_details)
-    render_places_of_interest(property_details)
-    
+
     # Get neighborhood info for schools, supermarkets, and green spaces
     neighborhood_info = property_details.get("neighborhood_info", {})
     nearby_schools = neighborhood_info.get("nearby_schools", [])
@@ -296,4 +342,7 @@ def render_location_tab(property_details):
     
     render_nearby_schools_list(nearby_schools)
     render_nearby_supermarkets_list(nearby_supermarkets)
-    render_nearby_green_spaces_list(nearby_green_spaces) 
+    render_nearby_green_spaces_list(nearby_green_spaces)
+    
+    # Render places of interest by category at the bottom
+    render_places_of_interest_by_category(property_details) 

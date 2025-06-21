@@ -1,6 +1,5 @@
 import folium
 from utils.location_utils import extract_coordinates_from_place_uri, geocode_address
-from utils.place_utils import get_place_icon_and_color
 
 def add_property_marker(map_obj, latitude, longitude, address):
     """Add property marker to the map."""
@@ -136,6 +135,73 @@ def add_places_of_interest_markers(map_obj, places_of_interest):
                 popup=folium.Popup(popup_content, max_width=350),
                 icon=folium.Icon(color=icon_color, icon=icon_name, prefix='fa')
             ).add_to(map_obj)
+
+
+def get_place_icon_and_color(types):
+    """Get appropriate icon and color based on place types."""
+    if not types:
+        return 'map-marker', 'gray'
+    
+    types_lower = [t.lower() for t in types]
+    
+    # Restaurant and food
+    if any(t in types_lower for t in ['restaurant', 'food', 'cafe', 'bar', 'bakery', 'pizza', 'takeaway']):
+        return 'utensils', 'orange'
+    
+    # Shopping
+    if any(t in types_lower for t in ['store', 'shopping', 'retail', 'clothing', 'jewelry', 'electronics']):
+        return 'shopping-bag', 'purple'
+    
+    # Entertainment
+    if any(t in types_lower for t in ['movie', 'theater', 'cinema', 'entertainment', 'nightclub', 'casino']):
+        return 'film', 'darkred'
+    
+    # Sports and fitness
+    if any(t in types_lower for t in ['gym', 'fitness', 'sports', 'stadium', 'swimming', 'tennis']):
+        return 'dumbbell', 'darkblue'
+    
+    # Healthcare
+    if any(t in types_lower for t in ['hospital', 'pharmacy', 'doctor', 'health', 'dentist', 'clinic']):
+        return 'medkit', 'red'
+    
+    # Transport
+    if any(t in types_lower for t in ['transit', 'bus', 'train', 'subway', 'taxi', 'car_rental']):
+        return 'bus', 'darkgreen'
+    
+    # Cultural
+    if any(t in types_lower for t in ['museum', 'library', 'art', 'cultural', 'gallery', 'theater']):
+        return 'landmark', 'cadetblue'
+    
+    # Religious
+    if any(t in types_lower for t in ['church', 'mosque', 'temple', 'synagogue', 'place_of_worship']):
+        return 'pray', 'saddlebrown'
+    
+    # Banking and Finance
+    if any(t in types_lower for t in ['bank', 'atm', 'finance', 'insurance']):
+        return 'university', 'darkgreen'
+    
+    # Post Office and Services
+    if any(t in types_lower for t in ['post_office', 'mail', 'postal']):
+        return 'envelope', 'navy'
+    
+    # Childcare and Education
+    if any(t in types_lower for t in ['childcare', 'daycare', 'nursery', 'kindergarten']):
+        return 'baby', 'pink'
+    
+    # Beauty and Personal Care
+    if any(t in types_lower for t in ['beauty_salon', 'hair_care', 'spa', 'nail_salon']):
+        return 'cut', 'hotpink'
+    
+    # Automotive
+    if any(t in types_lower for t in ['car_dealer', 'car_repair', 'gas_station', 'parking']):
+        return 'car', 'black'
+    
+    # Home and Garden
+    if any(t in types_lower for t in ['hardware_store', 'garden_center', 'furniture_store']):
+        return 'home', 'olive'
+    
+    # Default
+    return 'map-marker', 'gray'
 
 
 def create_property_map(property_details):

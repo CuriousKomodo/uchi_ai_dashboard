@@ -51,7 +51,7 @@ def render_property_details_tab(property_details):
     """Render the Property Details tab content."""
     # Render matched criteria using the new components
     render_property_criteria(property_details)
-    render_lifestyle_criteria(property_details)
+    # render_lifestyle_criteria(property_details)
 
     # Display property details
     st.markdown("#### Property Details")
@@ -171,7 +171,7 @@ def render_property_header(property_details, property_id):
     st.title(property_details['address'])
     
     # Price, bedrooms, and draft enquiry button in the same row
-    col1, col2 = st.columns([3, 1])
+    col1, col2, col3 = st.columns([4, 1, 1])
     
     with col1:
         st.markdown(f"### £{property_details['price']:,} | {property_details['num_bedrooms']} bedrooms")
@@ -190,6 +190,12 @@ def render_property_header(property_details, property_id):
             # Store in session state
             st.session_state[f"draft_msg_{property_id}"] = message
             st.session_state[f"show_draft_{property_id}"] = True
+    with col3:
+        st.link_button(
+            "View original",
+            url=f"https://www.rightmove.co.uk/properties/{property_id}"
+        )
+
 
 def render_draft_expander(property_id):
     """Render the draft enquiry expander if it should be shown."""
@@ -222,11 +228,6 @@ def render_draft_expander(property_id):
                     st.rerun()
             
             st.info("💡 To copy the text above, select all (Ctrl+A / Cmd+A) and copy (Ctrl+C / Cmd+C)")
-
-def general_buttons(property_id, property_details):
-    _, col1 = st.columns([5, 1])
-    with col1:
-        st.link_button("View original", url=f"https://www.rightmove.co.uk/properties/{property_id}")
 
 def show_property_page(firestore: FireStore):
     """Show the property detail page."""
@@ -266,9 +267,6 @@ def show_property_page(firestore: FireStore):
 
     # Render AI notes
     render_ai_notes(property_details)
-
-    # General buttons to visit original source
-    general_buttons(property_id, property_details)
 
     # Property details in tabs
     tab1, tab2 = st.tabs(["Property Details", "Location"])
