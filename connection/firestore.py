@@ -30,7 +30,6 @@ class FireStore:
             self.db = firestore.Client.from_service_account_json(credential_info_path)
         self.users_collection = self.db.collection('users')
         self.submission_collection = self.db.collection('submissions')
-        self.initial_screening_collection = self.db.collection('initial_screening')
         self.property_collection = self.db.collection('properties')
         self.shortlist_collection = self.db.collection('shortlist')
         self.extraction_collection = self.db.collection('extraction')
@@ -113,102 +112,6 @@ class FireStore:
         
         return extractions
 
-    def insert_submission(self, results):
-        # Create the new user
-        user_fields = {
-            "email": results["email"],
-            "first_name": results["first_name"],
-            'created_at': datetime.now(),
-        }
-        # Do check to see if the user already exists.
-        _, record = self.users_collection.add(user_fields)
-        user_id = record.path.split("/")[-1]
-
-        # Store the submission
-        self.submission_collection.add({
-            "user_id": user_id,
-            'email': results["email"],
-            'content': results,
-            'created_at': datetime.now()
-        })
-
-    def insert_extraction(self, property_id, extraction):
-        self.db.collection('extraction').add({
-            "property_id": property_id,
-            "results": extraction,
-            'created_at': datetime.now()
-        })
-
-    def insert_property(self, property_id, property_details):
-        extracted_metadata = {
-            "id": property_id,
-            "num_bedrooms": property_details.get("bedrooms"),
-            "num_bathrooms": property_details.get("bathrooms"),
-            "price": int(property_details.get("analyticsInfo").get("price")),
-            "postcode": property_details.get("postcode"),
-            "address": property_details.get("address"),
-            "stations": property_details.get("stations"),
-            "features": property_details.get("keyFeatures"),
-        }
-        extracted_metadata.update({"property_details": property_details, 'created_at': datetime.now()})
-        self.db.collection('properties').add(extracted_metadata)
-
-    def list_all_users(self) -> List[Dict]:
-        users_stream = self.users_collection.stream()
-        users = []
-        for doc in users_stream:
-            print('{} => {}'.format(doc.id, doc.to_dict()))
-            users.append(doc.to_dict())
-        return users
-
-    def list_all_submissions(self) -> List[Submission]:
-        submissions_stream = self.submission_collection.stream()
-        # query = self.submission_collection.where('created_at', '>', "")
-        submissions = []
-        for doc in submissions_stream:
-            try:
-                submission = Submission(**doc.to_dict())
-                if submission.is_active:
-                    submissions.append(submission)
-            except ValidationError as e:
-                continue
-        return submissions
-
-    def get_list_of_properties_based_on_submission(self, submission: Submission, days_added: int = 3) -> List[Dict]:
-        properties_ref = self.db.collection('properties')
-
-        filters = [
-            firestore.FieldFilter('price', '<', submission.content.max_price * 1000),
-            firestore.FieldFilter('created_at', '>', datetime.now(timezone.utc) - timedelta(days=days_added + 1))
-        ]
-        query = properties_ref.where(filter=filters[0]).where(filter=filters[1])
-
-        output = query.stream()
-        properties = [doc for doc in output if doc.to_dict()['num_bedrooms'] > submission.content.num_bedrooms - 1]
-
-        # if submission.content.num_bathrooms:
-        #     query = query.where('num_bathrooms', '>', submission.content.num_bathrooms-1)
-        extraction_ref = self.db.collection('extraction')
-        properties_with_extraction = []
-        for doc in properties:
-            property_info = doc.to_dict()
-            property_id = property_info["id"]
-            if property_id != 160583351:
-                continue
-            property_info.pop("property_details")
-            extraction_query = extraction_ref.where(
-                filter=FieldFilter('property_id', '==', property_id)
-            )
-
-            extraction_output = extraction_query.stream()
-            extractions = [(extraction.id, extraction.to_dict()) for extraction in extraction_output]
-            if extractions:
-                sorted_extractions = sorted(extractions, key=lambda tup: tup[1]['created_at'], reverse=True)
-                property_info["extraction_id"] = sorted_extractions[0][0]
-                property_info["extraction"] = sorted_extractions[0][1]
-                properties_with_extraction.append(property_info)
-        return properties_with_extraction
-
     def get_submission(self, submission_id: str) -> Optional[Submission]:
         doc_ref = self.submission_collection.document(submission_id)
         doc = doc_ref.get()
@@ -218,36 +121,113 @@ class FireStore:
         document["id"] = doc.id
         return Submission(**document)
 
-    def insert_shortlist(self, properties: List[Dict], submission_id: str, ):
-        self.db.collection('shortlist').add({
-            "properties": properties,
-            "submission_id": submission_id,
-            'created_at': datetime.now()
-        })
 
-    def get_shortlists_by_user_id(self, user_id: str) -> List[Dict]:
-        # Check cache first
-        cache_key = f"shortlist_{user_id}"
-        if cache_key in self.cache_manager.get_property_cache():
-            self.cache_manager._update_cache_stats('property', hit=True)
-            return self.cache_manager.get_property_cache()[cache_key]
-        
-        self.cache_manager._update_cache_stats('property', hit=False)
-        
-        # Query for shortlists
+    def _fetch_user_shortlists(self, user_id: str) -> List:
+        """Fetch shortlists for a user from Firestore."""
         shortlists = self.shortlist_collection.where("user_id", "==", user_id).get()
-
         if not shortlists:
             return []
+        
+        # Filter for recent shortlists (last 14 days)
+        return [shortlist for shortlist in shortlists if shortlist.create_time > datetime.now(timezone.utc) - timedelta(days=14)]
 
-        shortlists = [shortlist for shortlist in shortlists if shortlist.create_time > datetime.now(timezone.utc) - timedelta(days=30)]
-
-        # Get all property IDs
+    def _extract_property_ids_from_shortlists(self, shortlists: List) -> List[str]:
+        """Extract all property IDs from shortlists."""
         property_ids = []
-        for shortlist in shortlists:  # FIXME: maybe remove this in the future
+        for shortlist in shortlists:
             shortlist_data = shortlist.to_dict()
             properties = shortlist_data.get("properties", [])
             property_ids.extend([prop["property_id"] for prop in properties])
+        return property_ids
+
+    def _enrich_property_with_details(self, prop: Dict, property_data: Dict) -> Dict:
+        """Enrich a property with details from property_data."""
+        epc_url = None
+        council_tax_band = None
+        
+        if property_data.get("property_details") and property_data["property_details"].get("location") and isinstance(property_data["property_details"]["location"], dict):
+            epcs = property_data["property_details"].get("epcs")
+            if epcs and "url" in epcs[0]:
+                epc_url = epcs[0]["url"]
+            council_tax = property_data["property_details"].get("localPropertyTax")
+            if council_tax and "value" in council_tax:
+                council_tax_band = council_tax["value"]
+
+        # Enrich with property details
+        prop.update({
+            "address": property_data.get("address"),
+            "postcode": property_data.get("postcode"),
+            "price": property_data.get("price"),
+            "num_bedrooms": property_data.get("num_bedrooms"),
+            "stations": property_data.get("stations"),
+            "latitude": property_data.get("latitude"),
+            "longitude": property_data.get("longitude"),
+            "features": property_data.get("features"),
+            "epc": epc_url,
+            "council_tax_band": council_tax_band,
+        })
+
+        # Add sales info if available
+        if property_data["property_details"].get("salesInfo"):
+            prop.update({"tenure_type": property_data["property_details"].get("salesInfo").get("tenureType")})
+            prop.update(property_data["property_details"].get("salesInfo"))
+        
+        # Add floorplans if available
+        if property_data["property_details"].get("floorplans"):
+            prop["floorplans"] = property_data["property_details"]["floorplans"]
+        
+        return prop
+
+    def _enrich_property_with_extraction(self, prop: Dict, extraction: Dict) -> Dict:
+        """Enrich a property with extraction data."""
+        extraction_results = extraction.get("results", {})
+        prop.update(extraction_results)
+        return prop
+
+    def _process_journey_data(self, prop: Dict) -> Dict:
+        """Process and simplify journey data."""
+        if prop.get("journey"):
+            prop["journey"] = {"duration": prop["journey"]["duration"]}
+        return prop
+
+    def _build_enriched_shortlist(self, shortlists: List, properties: Dict[str, Dict], extractions: Dict[str, Dict]) -> List[Dict]:
+        """Build the final enriched shortlist by combining all data sources."""
+        seen_ids = set()
+        all_shortlisted_properties = []
+        
+        for shortlist in shortlists:
+            shortlist_data = shortlist.to_dict()
+            for prop in shortlist_data.get("properties", []):
+                property_id = prop["property_id"]
+                
+                if property_id in seen_ids:
+                    continue
+                
+                # Enrich with property details
+                if property_id in properties:
+                    prop = self._enrich_property_with_details(prop, properties[property_id])
+                
+                # Enrich with extraction data
+                if property_id in extractions:
+                    prop = self._enrich_property_with_extraction(prop, extractions[property_id])
+                
+                # Process journey data
+                prop = self._process_journey_data(prop)
+                
+                all_shortlisted_properties.append(prop)
+                seen_ids.add(property_id)
+        
+        return all_shortlisted_properties
+
+    def get_shortlists_by_user_id(self, user_id: str) -> List[Dict]:
+        """Get enriched shortlists for a user."""
+        # Fetch shortlists
+        shortlists = self._fetch_user_shortlists(user_id)
+        if not shortlists:
+            return []
+
+        # Extract property IDs
+        property_ids = self._extract_property_ids_from_shortlists(shortlists)
 
         # Fetch properties and extractions in parallel
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -257,60 +237,10 @@ class FireStore:
             properties = properties_future.result()
             extractions = extractions_future.result()
         
-        # Combine the data
-        seen_ids = set()
-        all_shortlisted_properties = []
-        for shortlist in shortlists:
-            shortlist_data = shortlist.to_dict()
-            for prop in shortlist_data.get("properties", []):
-                property_id = prop["property_id"]
-                if property_id in seen_ids:
-                    continue
-                if property_id in properties:
-                    property_data = properties[property_id]
-                    epc_url = None
-                    council_tax_band = None
-                    if property_data.get("property_details") and property_data["property_details"].get("location") and isinstance(property_data["property_details"]["location"], dict):
-                        epcs = property_data["property_details"].get("epcs")
-                        if epcs and "url" in epcs[0]:
-                            epc_url = epcs[0]["url"]
-                        council_tax = property_data["property_details"].get("localPropertyTax")
-                        if council_tax and "value" in council_tax:
-                            council_tax_band = council_tax["value"]
-
-                    # Prop only contains shortlist attributes, need enriching with the property details.
-                    prop.update({
-                        "address": property_data.get("address"),
-                        "postcode": property_data.get("postcode"),
-                        "price": property_data.get("price"),
-                        "num_bedrooms": property_data.get("num_bedrooms"),
-                        "stations": property_data.get("stations"),
-                        "latitude": property_data.get("latitude"),
-                        "longitude": property_data.get("longitude"),
-                        "features": property_data.get("features"),
-                        "epc": epc_url,
-                        "council_tax_band": council_tax_band,
-                    })
-
-                    if property_data["property_details"].get("salesInfo"):
-                        prop.update({"tenure_type": property_data["property_details"].get("salesInfo").get("tenureType")})
-                        prop.update(property_data["property_details"].get("salesInfo"))
-                    if property_data["property_details"].get("floorplans"):
-                        prop["floorplans"] = property_data["property_details"]["floorplans"]
-
-                if property_id in extractions:
-                    extraction = extractions[property_id].get("results", {})
-                    prop.update(extraction)
-
-                if prop.get("journey"):
-                    prop["journey"] = {"duration": prop["journey"]["duration"]}
-                all_shortlisted_properties.append(prop)
-                seen_ids.add(prop["property_id"])
-
-        all_shortlisted_properties
-        # Cache the result
-        self.cache_manager.get_property_cache()[cache_key] = all_shortlisted_properties
-        return all_shortlisted_properties
+        # Build enriched shortlist
+        result = self._build_enriched_shortlist(shortlists, properties, extractions)
+        
+        return result
 
     def get_submissions_by_user_id(self, user_id: str) -> List[Dict]:
         """Fetch all submissions for a specific user.
@@ -350,70 +280,12 @@ class FireStore:
             user_details.update({"user_id":users[0].id})
         return user_details
 
-    def get_property_by_id(self, property_id: str) -> Optional[Dict]:  # TODO: need to deprecate this
-        """Fetch a single property by ID."""
-        try:
-            # Get property from properties collection using a query
-            property_query = self.db.collection("properties").where("id", "==", int(property_id)).limit(1)
-            property_docs = property_query.get()
-            
-            if not property_docs:
-                return None
-                
-            property_data = property_docs[0].to_dict()
-            
-            # Get property details
-            property_details = property_data.get("property_details", {})
-            
-            # Get extractions if available
-            extractions_doc = self.extraction_collection.where("property_id", "==", int(property_id)).get()
-            extractions = {}
-            if extractions_doc:
-                extractions = extractions_doc[0].to_dict()
-                if "results" in extractions:
-                    extractions = extractions["results"]
-            
-            # Combine all data
-            result = {
-                "property_id": property_id,
-                "address": property_data.get("address"),
-                "postcode": property_data.get("postcode"),
-                "price": property_data.get("price"),
-                "num_bedrooms": property_data.get("num_bedrooms"),
-                "stations": property_data.get("stations"),
-                "compressed_images": extractions.get("compressed_images", []),  # Get images from property_details
-                "floorplans": extractions.get("floorplans", []) or extractions.get("floorplan", []),
-            }
-            
-            # Add location data if available
-            if property_details.get("location"):
-                result.update({
-                    "latitude": property_details["location"].get("latitude"),
-                    "longitude": property_details["location"].get("longitude")
-                })
-            
-            # Add sales info if available
-            if property_details.get("salesInfo"):
-                result.update(property_details["salesInfo"])
-
-            if property_details.get("analyticsInfo"):
-                result.update(property_details["analyticsInfo"])
-            
-            # Add extraction results if available
-            if extractions:
-                result.update(extractions)
-            
-            return result
-            
-        except Exception as e:
-            print(f"Error fetching property {property_id}: {str(e)}")
-            return None
-
 
 if __name__ == '__main__':
     firestore = FireStore()
     # submissions = firestore.list_all_submissions()
     # firestore.fetch_user_details_by_email('hu.kefei@yahoo.co.uk')
     all_shortlisted_properties = firestore.get_shortlists_by_user_id("hIk6crfW5BncLCYK8fIR")
+    print(all_shortlisted_properties)
     # save_json(all_shortlisted_properties, "shortlist_new.json")
     # submissions = firestore.get_submissions_by_user_id("hIk6crfW5BncLCYK8fIR")

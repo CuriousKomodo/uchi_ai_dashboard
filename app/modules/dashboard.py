@@ -53,66 +53,78 @@ def show_dashboard(firestore: FireStore):
     if st.session_state.user_submission:
         show_preferences_section(st.session_state.user_submission)
 
-    # Fetch properties from Firestore
-    with st.spinner(f'Hello {st.session_state.first_name}. Loading properties for you...'):
-        shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
-        # TODO: replace me with the actual flow
-        # st.header("Feature Properties")
-        # st.subheader("3 bedrooms in Dollis Hill - 450k")
-        # video_url = "https://www.youtube.com/watch?v=Y7OFw2bcYNY"
-        # st.video(video_url)
-        # Store the complete shortlist in session state
-        st.session_state.property_shortlist = {}
-        for prop in shortlist:
-            # Ensure we have all the required fields
-            property_data = {
-                'property_id': prop['property_id'],
-                'postcode': prop.get('postcode'),
-                'address': prop['address'],
-                'price': prop['price'],
-                'num_bedrooms': prop['num_bedrooms'],
-                'compressed_images': prop.get('compressed_images', []),
-                'floorplan': prop.get('floorplan', []),
-                'latitude': prop.get('latitude'),
-                'longitude': prop.get('longitude'),
-                'stations': prop.get('stations', []),
-                'match_output': prop.get('match_output', {}),
-                'matched_criteria': prop.get('matched_criteria', {}),
-                'matched_lifestyle_criteria': prop.get('matched_lifestyle_criteria', {}),
-                "prop_property_criteria_matched": prop.get('prop_property_criteria_matched', 0),
-                'journey': prop.get('journey', {}),
-                'deprivation': prop.get('deprivation'),
-                'places_of_interest': prop.get('places_of_interest', []),
-                "epc": prop.get("epc"),
-                "features": prop.get("features", []),
-                "council_tax_band": prop.get("council_tax_band", []),
-                # only applicable for flats
-                'ground_rent': prop.get('groundRent'),
-                'tenure_type': prop.get('tenure_type'),
-                'service_charge': prop.get('annualServiceCharge'),
-                'length_of_lease': prop.get('lengthOfLease'),
+    # Check if we already have cached property shortlist
+    if hasattr(st.session_state, 'property_shortlist') and st.session_state.property_shortlist:
+        shortlist = list(st.session_state.property_shortlist.values())
+        st.info("📋 Using cached property data. Refresh to get latest properties.")
+    else:
+        # Fetch properties from Firestore only if not cached
+        with st.spinner(f'Hello {st.session_state.first_name}. Loading properties for you...'):
+            shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
+            # Store the complete shortlist in session state
+            st.session_state.property_shortlist = {}
+            for prop in shortlist:
+                # Ensure we have all the required fields
+                property_data = {
+                    'property_id': prop['property_id'],
+                    'postcode': prop.get('postcode'),
+                    'address': prop['address'],
+                    'price': prop['price'],
+                    'num_bedrooms': prop['num_bedrooms'],
+                    'compressed_images': prop.get('compressed_images', []),
+                    'floorplan': prop.get('floorplan', []),
+                    'latitude': prop.get('latitude'),
+                    'longitude': prop.get('longitude'),
+                    'stations': prop.get('stations', []),
+                    'match_output': prop.get('match_output', {}),
+                    'matched_criteria': prop.get('matched_criteria', {}),
+                    'matched_lifestyle_criteria': prop.get('matched_lifestyle_criteria', {}),
+                    "prop_property_criteria_matched": prop.get('prop_property_criteria_matched', 0),
+                    'journey': prop.get('journey', {}),
+                    'deprivation': prop.get('deprivation'),
+                    'places_of_interest': prop.get('places_of_interest', []),
+                    "epc": prop.get("epc"),
+                    "features": prop.get("features", []),
+                    "council_tax_band": prop.get("council_tax_band", []),
+                    # only applicable for flats
+                    'ground_rent': prop.get('groundRent'),
+                    'tenure_type': prop.get('tenure_type'),
+                    'service_charge': prop.get('annualServiceCharge'),
+                    'length_of_lease': prop.get('lengthOfLease'),
 
-                # AI extracted
-                "draft": prop.get('draft', {}),
-                "missing_info": prop.get('missing_info', {}),
-                "neighborhood_info": prop.get('neighborhood_info', {}),
-                "description_analysis": prop.get('description_analysis', {}),
-                "image_analysis": prop.get('image_analysis', {}),
-            }
-            st.session_state.property_shortlist[prop['property_id']] = property_data
+                    # AI extracted
+                    "draft": prop.get('draft', {}),
+                    "missing_info": prop.get('missing_info', {}),
+                    "neighborhood_info": prop.get('neighborhood_info', {}),
+                    "description_analysis": prop.get('description_analysis', {}),
+                    "image_analysis": prop.get('image_analysis', {}),
+                }
+                st.session_state.property_shortlist[prop['property_id']] = property_data
 
     if shortlist:
-        sort_by = st.selectbox(
-            "Sort by",
-            options=["Price: Low to High",
-                     "Price: High to Low",
-                     "Bedrooms: Most to Fewest",
-                     "Commute time to work: Shortest to Longest",
-                     "Criteria Match: Most to Least"
-                     ],
-            placeholder="Price: Low to High",
-            key="user_sort_order"
-        )
+        # Add refresh button to clear cache and reload
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            sort_by = st.selectbox(
+                "Sort by",
+                options=["Price: Low to High",
+                         "Price: High to Low",
+                         "Bedrooms: Most to Fewest",
+                         "Commute time to work: Shortest to Longest",
+                         "Criteria Match: Most to Least"
+                         ],
+                placeholder="Price: Low to High",
+                key="user_sort_order"
+            )
+        with col2:
+            if st.button("🔄 Refresh Properties", type="secondary"):
+                # Clear the cache and reload
+                if hasattr(st.session_state, 'property_shortlist'):
+                    del st.session_state.property_shortlist
+                if hasattr(st.session_state, 'decoded_images'):
+                    del st.session_state.decoded_images
+                st.rerun()
+        
         if not sort_by:
             sort_by_chosen_option("Price: Low to High", shortlist)
         sort_by_chosen_option(st.session_state.user_sort_order, shortlist)
