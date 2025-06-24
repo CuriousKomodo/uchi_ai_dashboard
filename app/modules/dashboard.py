@@ -1,13 +1,24 @@
 import streamlit as st
+import base64
+import json
 
 from connection.firestore import FireStore
 from custom_exceptions import NoUserFound
 from utils.draft import draft_enquiry
 from utils.filter import sort_by_chosen_option
 from app.components.preferences_view import show_preferences_section
+from app.components.dashboard_styles import get_dashboard_css
 
-import base64
-import json
+
+
+def clear_all_caches():
+    """Clear all cached data from session state."""
+    if hasattr(st.session_state, 'property_shortlist'):
+        del st.session_state.property_shortlist
+    if hasattr(st.session_state, 'decoded_images'):
+        del st.session_state.decoded_images
+    if hasattr(st.session_state, 'user_submission'):
+        del st.session_state.user_submission
 
 def login(firestore: FireStore):
     """Handle user login."""
@@ -23,6 +34,10 @@ def login(firestore: FireStore):
                 st.session_state.email = email
                 st.session_state.user_id = user_details.get("user_id")
                 st.session_state.first_name = user_details.get("first_name")
+                
+                # Clear any existing caches for fresh session
+                clear_all_caches()
+                
                 st.rerun()
             else:
                 st.error("Invalid password")
@@ -40,14 +55,18 @@ def show_dashboard(firestore: FireStore):
     if "decoded_images" not in st.session_state:
         st.session_state.decoded_images = {}
 
-    # Fetch user's submission data first
-    with st.spinner(f'Hello {st.session_state.first_name}. Loading your preferences...'):
-        submissions = firestore.get_submissions_by_user_id(st.session_state.user_id)
-        if submissions:
-            # Store the most recent submission in session state
-            st.session_state.user_submission = submissions[-1]  # Get the most recent submission
-        else:
-            st.session_state.user_submission = None
+    # Check if we already have cached user submission
+    if hasattr(st.session_state, 'user_submission') and st.session_state.user_submission:
+        st.info("👤 Using cached user preferences.")
+    else:
+        # Fetch user's submission data only if not cached
+        with st.spinner(f'Hello {st.session_state.first_name}. Loading your preferences...'):
+            submissions = firestore.get_submissions_by_user_id(st.session_state.user_id)
+            if submissions:
+                # Store the most recent submission in session state
+                st.session_state.user_submission = submissions[-1]  # Get the most recent submission
+            else:
+                st.session_state.user_submission = None
 
     # Display user preferences if available
     if st.session_state.user_submission:
@@ -119,10 +138,7 @@ def show_dashboard(firestore: FireStore):
         with col2:
             if st.button("🔄 Refresh Properties", type="secondary"):
                 # Clear the cache and reload
-                if hasattr(st.session_state, 'property_shortlist'):
-                    del st.session_state.property_shortlist
-                if hasattr(st.session_state, 'decoded_images'):
-                    del st.session_state.decoded_images
+                clear_all_caches()
                 st.rerun()
         
         if not sort_by:
@@ -130,81 +146,7 @@ def show_dashboard(firestore: FireStore):
         sort_by_chosen_option(st.session_state.user_sort_order, shortlist)
 
         # Add custom CSS for property cards
-        st.markdown("""
-            <style>
-            .property-card {
-                border: 1px solid #e0e0e0;
-                border-radius: 10px;
-                padding: 15px;
-                margin-bottom: 20px;
-                background-color: white;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                transition: transform 0.2s;
-            }
-            .property-card:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            }
-            .property-image {
-                width: 100%;
-                height: 200px;
-                object-fit: cover;
-                border-radius: 8px;
-                margin-bottom: 10px;
-            }
-            .property-title {
-                font-size: 1.2em;
-                font-weight: bold;
-                margin: 10px 0;
-                color: #1f1f1f;
-            }
-            .property-price {
-                font-size: 1.1em;
-                color: #2e7d32;
-                font-weight: bold;
-                margin: 5px 0;
-            }
-            .property-details {
-                font-size: 0.9em;
-                color: #666;
-                margin: 5px 0;
-            }
-            .criteria-tag {
-                display: inline-block;
-                background-color: #e3f2fd;
-                color: #1976d2;
-                padding: 4px 8px;
-                border-radius: 4px;
-                margin: 2px;
-                font-size: 0.8em;
-            }
-            .view-details-btn {
-                width: 100%;
-                margin-top: 15px;
-                background-color: #1976d2;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 12px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                font-weight: bold;
-                font-size: 1.1em;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
-            }
-            .view-details-btn:hover {
-                background-color: #1565c0;
-                transform: translateY(-2px);
-                box-shadow: 0 4px 8px rgba(25, 118, 210, 0.4);
-            }
-            .view-details-btn:active {
-                transform: translateY(0);
-                box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
-            }
-            </style>
-        """, unsafe_allow_html=True)
+        st.markdown(get_dashboard_css(), unsafe_allow_html=True)
 
         # Create a grid of property cards
         for i in range(0, len(shortlist), 3):
