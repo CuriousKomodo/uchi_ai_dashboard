@@ -105,6 +105,8 @@ def show_dashboard(firestore: FireStore):
                     "epc": prop.get("epc"),
                     "features": prop.get("features", []),
                     "council_tax_band": prop.get("council_tax_band", []),
+                    'distance_to_preferred_location': prop.get('distance_to_preferred_location', None),
+
                     # only applicable for flats
                     'ground_rent': prop.get('groundRent'),
                     'tenure_type': prop.get('tenure_type'),
@@ -122,24 +124,45 @@ def show_dashboard(firestore: FireStore):
 
     if shortlist:
         # Add refresh button to clear cache and reload
-        col1, col2 = st.columns([3, 1])
+        col1, col0, col2, col3 = st.columns([2, 1, 1, 1])
         with col1:
             sort_by = st.selectbox(
                 "Sort by",
                 options=["Price: Low to High",
                          "Price: High to Low",
                          "Bedrooms: Most to Fewest",
-                         # "Commute time to work: Shortest to Longest",
-                         "Criteria Match: Most to Least"
+                         "Criteria Match: Most to Least",
+                         "Closest to the preferred location"
                          ],
-                placeholder="Price: Low to High",
+                placeholder="Criteria Match: Most to Least",
                 key="user_sort_order"
             )
         with col2:
+            # Filter checkbox for properties within 2km
+            preferred_location = "your preferred location"
+            if st.session_state.user_submission and st.session_state.user_submission.get('content'):
+                if st.session_state.user_submission['content'].get('preferred_location') :
+                    preferred_location = st.session_state.user_submission['content']['preferred_location'].split(",")[0]
+
+            filter_within_2km = st.checkbox(
+                f"📍 Within 2km of {preferred_location}",
+                help="Show only properties within 2km of your preferred location"
+            )
+        with col3:
             if st.button("🔄 Refresh Properties", type="secondary"):
                 # Clear the cache and reload
                 clear_all_caches()
                 st.rerun()
+        
+        # Apply distance filter if button is clicked
+        if filter_within_2km:
+            filtered_shortlist = []
+            for prop in shortlist:
+                distance = prop.get("distance_to_preferred_location", 500)
+                if distance <= 2.5:  # 2km = 2.0
+                    filtered_shortlist.append(prop)
+            shortlist = filtered_shortlist
+            st.info(f"📍 Showing {len(shortlist)} properties within 2km of your preferred location")
         
         if not sort_by:
             sort_by_chosen_option("Price: Low to High", shortlist)

@@ -23,6 +23,8 @@ def sort_by_chosen_option(sort_by, shortlist):
         shortlist.sort(key=lambda x: x.get('journey', {"duration": 500}).get('duration'))
     elif sort_by == "Criteria Match: Most to Least":
         shortlist.sort(key=criteria_match_count, reverse=True)
+    elif sort_by == "Closest to the preferred location":
+        shortlist.sort(key=lambda x: x.get("distance_to_preferred_location", 500))
 
 
 if __name__ == "__main__":
