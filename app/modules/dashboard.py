@@ -129,7 +129,7 @@ def show_dashboard(firestore: FireStore):
                 options=["Price: Low to High",
                          "Price: High to Low",
                          "Bedrooms: Most to Fewest",
-                         "Commute time to work: Shortest to Longest",
+                         # "Commute time to work: Shortest to Longest",
                          "Criteria Match: Most to Least"
                          ],
                 placeholder="Price: Low to High",
