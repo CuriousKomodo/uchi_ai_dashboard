@@ -2,6 +2,7 @@ import base64
 import streamlit as st
 
 from utils.draft import draft_enquiry
+from utils.image_utils import render_property_images
 
 from connection.firestore import FireStore
 from app.modules.chat import show_chat_interface
@@ -13,29 +14,6 @@ from utils.demographic_utils import (
     format_description_analysis_value,
 )
 from app.components.location_components import render_location_tab
-
-def render_property_images(property_details, property_id):
-    """Render property images in a 2x4 grid."""
-    if property_details.get('compressed_images'):
-        # Create 2 rows of 4 columns
-        for row in range(2):
-            cols = st.columns(4)
-            for col in range(4):
-                idx = row * 4 + col
-                if idx < len(property_details['compressed_images']):
-                    try:
-                        # Decode image if not already in session state
-                        if f"img_{property_id}_{idx}" not in st.session_state:
-                            decoded_image = base64.b64decode(property_details['compressed_images'][idx]["base64"])
-                            st.session_state[f"img_{property_id}_{idx}"] = decoded_image
-                        
-                        with cols[col]:
-                            st.image(
-                                st.session_state[f"img_{property_id}_{idx}"],
-                                use_column_width=True
-                            )
-                    except Exception as e:
-                        print(f"Error displaying image {idx} for property {property_id}: {str(e)}")
 
 def render_ai_notes(property_details):
     """Render AI notes from image analysis."""
