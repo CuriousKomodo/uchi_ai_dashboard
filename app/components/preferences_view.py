@@ -115,6 +115,10 @@ def show_preferences_section(submission_data: Dict[str, Any]) -> None:
             st.markdown(f'<div class="preference-value">{content.get("workplace_location", "Not specified")}</div>', unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
 
+            st.markdown('<div class="preference-label">📍 Preferred Location</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="preference-value">{content.get("preferred_location", "Not specified")}</div>', unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+
             st.markdown('<div class="preference-label">👨‍👩‍👧‍👦 Family Status</div>', unsafe_allow_html=True)
             family_status = []
             if content.get('has_child') == 'Yes':
