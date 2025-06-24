@@ -38,14 +38,13 @@ def render_neighborhood_statistics(property_details):
             if demographic_stats.get('crime_rate') is not None:
                 crime_rate = str(demographic_stats['crime_rate'])
                 color = get_crime_rate_color(crime_rate)
-                st.metric("Crime Rate", crime_rate, delta_color=color)
-                st.caption("#crimes per 1000 people")
+                st.metric("Crime Rate", crime_rate, delta_color=color, help="#Crimes per 1000 people")
                 
         with col2:
             if demographic_stats.get('deprivation_rate') is not None:
                 deprivation_rate = str(demographic_stats['deprivation_rate'])
                 color = get_deprivation_rate_color(deprivation_rate)
-                st.metric("Deprivation Rate", deprivation_rate, delta_color=color)
+                st.metric("Deprivation Rate", deprivation_rate, delta_color=color, help="Proportion of households reported with deprivation in at least one of the dimensions")
                 
         with col3:
             if demographic_stats.get('avg_income') is not None:
@@ -64,7 +63,7 @@ def render_neighborhood_statistics(property_details):
         with col5:
             if demographic_stats.get('degree_rate') is not None:
                 degree_rate = str(demographic_stats['degree_rate'])
-                st.metric("Degree Rate", degree_rate)
+                st.metric("Degree Rate", degree_rate, help="Proportion of households with higher education")
         
         if neighborhood_information and neighborhood_information.get('asking_price') is not None:
             st.markdown(f"**Avg. Asking Price for {property_details['num_bedrooms']} bedrooms**: £{neighborhood_information['asking_price']}")
