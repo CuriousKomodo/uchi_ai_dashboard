@@ -38,7 +38,7 @@ def draft_enquiry(
         customer_name: str,
 ):
     if property_details.get("draft"):
-        draft = property_details.get("draft").replace("{customer_name}", customer_name)
+        draft = property_details.get("draft").replace("uchi_user", customer_name)
     else:
         draft = f"Hi I am interested in this property and would like to request for a viewing. Best, {customer_name}"
     return draft
