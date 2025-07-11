@@ -28,6 +28,9 @@ ENV/
 .venv/
 .env/
 
+# Keep .streamlit directory for secrets
+!.streamlit/
+
 # IDE
 .vscode/
 .idea/
