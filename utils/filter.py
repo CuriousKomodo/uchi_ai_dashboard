@@ -25,6 +25,8 @@ def sort_by_chosen_option(sort_by, shortlist):
         shortlist.sort(key=criteria_match_count, reverse=True)
     elif sort_by == "Closest to the preferred location":
         shortlist.sort(key=lambda x: x.get("distance_to_preferred_location", 500))
+    elif sort_by == "Newest First":
+        shortlist.sort(key=lambda x: x.get("created_at", ""), reverse=True)
 
 
 if __name__ == "__main__":

@@ -156,9 +156,11 @@ class FireStore:
         # Enrich with property details
         prop.update({
             "address": property_data.get("address"),
+            "created_at": property_data.get("created_at"),
             "postcode": property_data.get("postcode"),
             "price": property_data.get("price"),
             "num_bedrooms": property_data.get("num_bedrooms"),
+            "num_bathrooms": property_data.get("num_bathrooms"),
             "stations": property_data.get("stations"),
             "latitude": property_data.get("latitude"),
             "longitude": property_data.get("longitude"),

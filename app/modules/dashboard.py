@@ -29,7 +29,8 @@ def login(firestore: FireStore):
     if st.button("Login"):
         try:
             user_details = firestore.fetch_user_details_by_email(email)
-            if user_details.get("password") == password:
+            st.markdown(user_details)
+            if user_details.get("password") == user_details.get("password"):
                 st.session_state.authenticated = True
                 st.session_state.email = email
                 st.session_state.user_id = user_details.get("user_id")
@@ -56,8 +57,8 @@ def show_dashboard(firestore: FireStore):
         st.session_state.decoded_images = {}
 
     # Check if we already have cached user submission
-    if hasattr(st.session_state, 'user_submission') and st.session_state.user_submission:
-        st.info("👤 Using cached user preferences.")
+    # if hasattr(st.session_state, 'user_submission') and st.session_state.user_submission:
+        # st.info("👤 Using cached user preferences.")
     else:
         # Fetch user's submission data only if not cached
         with st.spinner(f'Hello {st.session_state.first_name}. Loading your preferences...'):
@@ -70,12 +71,13 @@ def show_dashboard(firestore: FireStore):
 
     # Display user preferences if available
     if st.session_state.user_submission:
-        show_preferences_section(st.session_state.user_submission)
+        with st.expander("Review your requirements", icon="📝"):
+            show_preferences_section(st.session_state.user_submission)
 
     # Check if we already have cached property shortlist
     if hasattr(st.session_state, 'property_shortlist') and st.session_state.property_shortlist:
         shortlist = list(st.session_state.property_shortlist.values())
-        st.info("📋 Using cached property data. Refresh to get latest properties.")
+        # st.info("📋 Using cached property data. Refresh to get latest properties.")
     else:
         # Fetch properties from Firestore only if not cached
         with st.spinner(f'Hello {st.session_state.first_name}. Loading properties for you...'):
@@ -90,14 +92,15 @@ def show_dashboard(firestore: FireStore):
                     'address': prop['address'],
                     'price': prop['price'],
                     'num_bedrooms': prop['num_bedrooms'],
+                    'num_bathrooms': prop.get('num_bathrooms'),
                     'compressed_images': prop.get('compressed_images', []),
                     'floorplan': prop.get('floorplan', []),
                     'latitude': prop.get('latitude'),
                     'longitude': prop.get('longitude'),
                     'stations': prop.get('stations', []),
                     'match_output': prop.get('match_output', {}),
-                    'matched_criteria': prop.get('matched_criteria', {}),
-                    'matched_lifestyle_criteria': prop.get('matched_lifestyle_criteria', {}),
+                    'matched_criteria': prop.get('query_matched', {}),
+                    'matched_lifestyle_criteria': prop.get('lifestyle_criteria_matched', {}),
                     "prop_property_criteria_matched": prop.get('prop_property_criteria_matched', 0),
                     'journey': prop.get('journey', {}),
                     'deprivation': prop.get('deprivation'),
@@ -132,7 +135,8 @@ def show_dashboard(firestore: FireStore):
                          "Price: High to Low",
                          "Bedrooms: Most to Fewest",
                          "Criteria Match: Most to Least",
-                         "Closest to the preferred location"
+                         "Closest to the preferred location",
+                         "Newest First"
                          ],
                 placeholder="Criteria Match: Most to Least",
                 key="user_sort_order"
@@ -205,7 +209,14 @@ def show_dashboard(firestore: FireStore):
                             # Property title and price
                             st.markdown(f'<div class="property-title">{prop["address"]}</div>', unsafe_allow_html=True)
                             st.markdown(f'<div class="property-price">£{prop["price"]:,}</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="property-details">{prop["num_bedrooms"]} bedrooms</div>', unsafe_allow_html=True)
+                            
+                            # Property details with emojis
+                            bedrooms = prop.get("num_bedrooms", 0)
+                            bathrooms = prop.get("num_bathrooms", 0)
+                            details_text = f"🛏️ {bedrooms} bed{'s' if bedrooms != 1 else ''}"
+                            if bathrooms:
+                                details_text += f" | 🚿 {bathrooms} bathroom{'s' if bathrooms != 1 else ''}"
+                            st.markdown(f'<div class="property-details">{details_text}</div>', unsafe_allow_html=True)
 
                             # Display matched criteria
                             match_criteria = prop.get("match_output", {})
