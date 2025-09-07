@@ -28,8 +28,9 @@ def render_ai_notes(property_details):
 def render_property_details_tab(property_details):
     """Render the Property Details tab content."""
     # Render matched criteria using the new components
-    render_property_criteria(property_details)
-    # render_lifestyle_criteria(property_details)
+    with st.container():
+        render_property_criteria(property_details)
+        # render_lifestyle_criteria(property_details)
 
     # Display property details
     st.markdown("#### Property Details")

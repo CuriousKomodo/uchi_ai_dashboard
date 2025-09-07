@@ -32,6 +32,8 @@ if "chat_flag" not in st.session_state:
     st.session_state.chat_flag = None
 if "current_view" not in st.session_state:
     st.session_state.current_view = "dashboard"
+if "user_submission" not in st.session_state:
+    st.session_state.user_submission = None
 
 def main():
     """Main app function."""

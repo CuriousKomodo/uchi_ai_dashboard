@@ -330,7 +330,9 @@ def render_location_tab(property_details):
         render_transport_info(property_details)
 
     # Render lifestyle criteria first (neighborhood-related)
-    render_lifestyle_criteria(property_details)
+
+    with st.container():
+        render_lifestyle_criteria(property_details)
 
 
     # Get neighborhood info for schools, supermarkets, and green spaces
