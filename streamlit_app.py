@@ -64,11 +64,13 @@ def main():
                 if st.button("🏠 Dashboard View", use_container_width=True, 
                             type="primary" if st.session_state.current_view == "dashboard" else "secondary"):
                     st.query_params.update(path="dashboard")
+                    st.markdown("List view of the recommended properties")
                     st.rerun()
             with col2:
                 if st.button("🏫 School-centric View", use_container_width=True,
                             type="primary" if st.session_state.current_view == "school" else "secondary"):
                     st.query_params.update(path="school")
+                    st.markdown("Map view of the recommended properties and nearby schools")
                     st.rerun()
             st.markdown("---")  # Add a separator line
 
