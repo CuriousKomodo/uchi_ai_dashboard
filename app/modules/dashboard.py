@@ -30,7 +30,7 @@ def login(firestore: FireStore):
         try:
             user_details = firestore.fetch_user_details_by_email(email)
             st.markdown(user_details)
-            if user_details.get("password") == user_details.get("password"):
+            if user_details.get("password") == password:
                 st.session_state.authenticated = True
                 st.session_state.email = email
                 st.session_state.user_id = user_details.get("user_id")
@@ -66,13 +66,11 @@ def show_dashboard(firestore: FireStore):
             if submissions:
                 # Store the most recent submission in session state
                 st.session_state.user_submission = submissions[-1]  # Get the most recent submission
+                with st.expander("Review your requirements", icon="📝"):
+                    show_preferences_section(st.session_state.user_submission)
             else:
                 st.session_state.user_submission = None
 
-    # Display user preferences if available
-    if st.session_state.user_submission:
-        with st.expander("Review your requirements", icon="📝"):
-            show_preferences_section(st.session_state.user_submission)
 
     # Check if we already have cached property shortlist
     if hasattr(st.session_state, 'property_shortlist') and st.session_state.property_shortlist:
@@ -169,7 +167,7 @@ def show_dashboard(firestore: FireStore):
             st.info(f"📍 Showing {len(shortlist)} properties within 2km of your preferred location")
         
         if not sort_by:
-            sort_by_chosen_option("Price: Low to High", shortlist)
+            sort_by_chosen_option("Criteria Match: Most to Least", shortlist)
         sort_by_chosen_option(st.session_state.user_sort_order, shortlist)
 
         # Add custom CSS for property cards
