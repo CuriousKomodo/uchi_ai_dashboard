@@ -6,7 +6,7 @@ from utils.image_utils import render_property_images
 
 from connection.firestore import FireStore
 from app.modules.chat import show_chat_interface
-from app.components.criteria_components import render_property_criteria, render_lifestyle_criteria
+from app.components.criteria_components import render_property_criteria
 
 from utils.text_utils import extract_conclusion
 from utils.demographic_utils import (
