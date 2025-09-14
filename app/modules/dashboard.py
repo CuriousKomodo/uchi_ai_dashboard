@@ -129,13 +129,15 @@ def show_dashboard(firestore: FireStore):
         with col1:
             sort_by = st.selectbox(
                 "Sort by",
-                options=["Price: Low to High",
-                         "Price: High to Low",
-                         "Bedrooms: Most to Fewest",
-                         "Criteria Match: Most to Least",
-                         "Closest to the preferred location",
-                         "Newest First"
+                options=[
+                    "Criteria Match: Most to Least",
+                    "Price: Low to High",
+                     "Price: High to Low",
+                     "Bedrooms: Most to Fewest",
+                     "Closest to the preferred location",
+                     "Newest First"
                          ],
+                index=0,
                 placeholder="Criteria Match: Most to Least",
                 key="user_sort_order"
             )
