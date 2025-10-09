@@ -30,7 +30,7 @@ def login(firestore: FireStore):
         try:
             user_details = firestore.fetch_user_details_by_email(email)
             st.markdown(user_details)
-            if user_details.get("password") == password:
+            if user_details.get("password", "") == password:
                 st.session_state.authenticated = True
                 st.session_state.email = email
                 st.session_state.user_id = user_details.get("user_id")

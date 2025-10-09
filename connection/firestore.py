@@ -286,8 +286,10 @@ class FireStore:
 if __name__ == '__main__':
     firestore = FireStore()
     # submissions = firestore.list_all_submissions()
-    # firestore.fetch_user_details_by_email('hu.kefei@yahoo.co.uk')
-    all_shortlisted_properties = firestore.get_shortlists_by_user_id("hIk6crfW5BncLCYK8fIR")
-    print(all_shortlisted_properties)
+    details = firestore.fetch_user_details_by_email('example@example.com')
+    print(details)
+    print(details.get("password", ""))
+    # all_shortlisted_properties = firestore.get_shortlists_by_user_id("hIk6crfW5BncLCYK8fIR")
+    # print(all_shortlisted_properties)
     # save_json(all_shortlisted_properties, "shortlist_new.json")
     # submissions = firestore.get_submissions_by_user_id("hIk6crfW5BncLCYK8fIR")
