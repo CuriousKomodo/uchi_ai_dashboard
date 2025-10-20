@@ -223,6 +223,14 @@ def show_dashboard(firestore: FireStore):
                             match_criteria_additional = prop.get("matched_criteria", {})
                             match_criteria.update({criteria: True for criteria in match_criteria_additional})
 
+                            # Display distance to each locations if chosen
+                            distance_to_preferred_locations = prop.get("distance_to_preferred_locations", {})
+
+                            if distance_to_preferred_locations:
+                                for location, distance in distance_to_preferred_locations.items():
+                                    if isinstance(distance, float) and distance < 2.5:
+                                        st.markdown(f"~{int(distance)} miles to {location}", unsafe_allow_html=True)
+
                             criteria_html = '<div style="margin: 10px 0;">'
                             for key, value in match_criteria.items():
                                 if isinstance(value, bool) and value:
