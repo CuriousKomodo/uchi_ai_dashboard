@@ -84,10 +84,15 @@ def show_dashboard(firestore: FireStore):
             st.session_state.property_shortlist = {}
             for prop in shortlist:
                 # Ensure we have all the required fields
+
+                if isinstance(prop['address'], dict) and "" in prop['address']:  # a short fix for the address problem with rental
+                    address = prop['address']["displayAddress"]
+                else:
+                    address = prop['address']
                 property_data = {
                     'property_id': prop['property_id'],
                     'postcode': prop.get('postcode'),
-                    'address': prop['address'],
+                    'address': address,
                     'price': prop['price'],
                     'num_bedrooms': prop['num_bedrooms'],
                     'num_bathrooms': prop.get('num_bathrooms'),
