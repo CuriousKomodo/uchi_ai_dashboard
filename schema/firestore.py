@@ -1,27 +1,36 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pydantic import BaseModel
 
 
-class Content(BaseModel):  # User's preferences
-    max_price: int
+class Content(BaseModel):
+    listing_type: Optional[str] = None  # User's preferences
+    max_price: Optional[int] = None
+    max_monthly_rent: Optional[int] = None
     num_bedrooms: int
     num_bathrooms: Optional[int] = None
-    preferred_location: List[str]  # index
-    build_era: List[str]
     property_type: List[str]
-    min_energy_rating: str  # EPC?
-    exclude_commercial_site: bool
-    exclude_high_rise: bool
-    has_balcony: bool
-    has_garden: bool
-    has_private_parking: bool
-    refurbishment_needed: List[str]
-    open_kitchen: Optional[bool] = None
+    user_preference_tags: List[str] = None
+    user_preference: Optional[str] = None
     hobbies: Optional[str] = None
     has_child: Optional[bool] = None
     has_pet: Optional[bool] = None
+    workplace_location: Optional[str] = None
+    preferred_location: Optional[str] = None
+    min_lease_year: Optional[int] = None
+    buying_alone: Optional[bool] = None
+    timeline: Optional[str] = None  # Sales
+    motivation: Optional[str] = None
+    school_types: Optional[List[str]] = []
+
+    # Rental
+    furnishing_preference: Optional[Union[str, List[str]]] = None
+    deposit: Optional[int] = None
+    let_available: Optional[datetime] = None
+
+
+# todo: worth adding a new class for Rental vs. Sale
 
 class Submission(BaseModel):
     id: Optional[str]
