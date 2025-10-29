@@ -1,24 +1,24 @@
+from typing import Any, Dict, List, Optional
+
 import streamlit as st
-import base64
-import json
 
 from connection.firestore import FireStore
 from custom_exceptions import NoUserFound
-from utils.draft import draft_enquiry
 from utils.filter import sort_by_chosen_option
 from app.components.preferences_view import show_preferences_section
 from app.components.dashboard_styles import get_dashboard_css
-
-
-
-def clear_all_caches():
-    """Clear all cached data from session state."""
-    if hasattr(st.session_state, 'property_shortlist'):
-        del st.session_state.property_shortlist
-    if hasattr(st.session_state, 'decoded_images'):
-        del st.session_state.decoded_images
-    if hasattr(st.session_state, 'user_submission'):
-        del st.session_state.user_submission
+from app.modules.dashboard_cards import render_property_card
+from app.modules.dashboard_filters import filter_properties, render_filter_controls
+from app.modules.dashboard_sort import (
+    render_listing_mode_selector,
+    render_refresh_button,
+    render_sort_control,
+)
+from app.modules.dashboard_utils import (
+    clear_all_caches,
+    filter_shortlist_by_mode,
+    get_preferred_location_label, determine_listing_mode,
+)
 
 def login(firestore: FireStore):
     """Handle user login."""
@@ -52,49 +52,35 @@ def show_dashboard(firestore: FireStore):
         login(firestore)
         return
 
-    # Initialize session state for image caching
+    # Initialize session state containers
     if "decoded_images" not in st.session_state:
         st.session_state.decoded_images = {}
 
-    # Check if we already have cached user submission
-    # if hasattr(st.session_state, 'user_submission') and st.session_state.user_submission:
-        # st.info("👤 Using cached user preferences.")
-    else:
-        # Fetch user's submission data only if not cached
+    if "user_submission" not in st.session_state:
         with st.spinner(f'Hello {st.session_state.first_name}. Loading your preferences...'):
             submissions = firestore.get_submissions_by_user_id(st.session_state.user_id)
-            if submissions:
-                # Store the most recent submission in session state
-                st.session_state.user_submission = submissions[-1]  # Get the most recent submission
-                with st.expander("Review your requirements", icon="📝"):
-                    show_preferences_section(st.session_state.user_submission)
-            else:
-                st.session_state.user_submission = None
+            st.session_state.user_submission = submissions[-1] if submissions else None
 
+    user_submission = st.session_state.user_submission
+    if user_submission:
+        with st.expander("Review your requirements", icon="📝"):
+            show_preferences_section(user_submission)
 
-    # Check if we already have cached property shortlist
-    if hasattr(st.session_state, 'property_shortlist') and st.session_state.property_shortlist:
-        shortlist = list(st.session_state.property_shortlist.values())
-        # st.info("📋 Using cached property data. Refresh to get latest properties.")
-    else:
-        # Fetch properties from Firestore only if not cached
+    if "property_shortlist" not in st.session_state or not st.session_state.property_shortlist:
         with st.spinner(f'Hello {st.session_state.first_name}. Loading properties for you...'):
-            shortlist = firestore.get_shortlists_by_user_id(st.session_state.user_id)
-            # Store the complete shortlist in session state
+            shortlisted_properties = firestore.get_shortlists_by_user_id(st.session_state.user_id)
             st.session_state.property_shortlist = {}
-            for prop in shortlist:
-                # Ensure we have all the required fields
-
-                if isinstance(prop['address'], dict) and "" in prop['address']:  # a short fix for the address problem with rental
+            for prop in shortlisted_properties:
+                if isinstance(prop.get('address'), dict) and "" in prop['address']:
                     address = prop['address']["displayAddress"]
                 else:
-                    address = prop['address']
+                    address = prop.get('address')
                 property_data = {
                     'property_id': prop['property_id'],
                     'postcode': prop.get('postcode'),
                     'address': address,
-                    'price': prop['price'],
-                    'num_bedrooms': prop['num_bedrooms'],
+                    'price': prop.get('price'),
+                    'num_bedrooms': prop.get('num_bedrooms'),
                     'num_bathrooms': prop.get('num_bathrooms'),
                     'compressed_images': prop.get('compressed_images', []),
                     'floorplan': prop.get('floorplan', []),
@@ -102,7 +88,7 @@ def show_dashboard(firestore: FireStore):
                     'longitude': prop.get('longitude'),
                     'stations': prop.get('stations', []),
                     'match_output': prop.get('match_output', {}),
-                    'matched_criteria': prop.get('query_matched', {}),
+                    'matched_criteria': prop.get('query_matched', []) + prop.get('matched_criteria', []),
                     'matched_lifestyle_criteria': prop.get('lifestyle_criteria_matched', {}),
                     "prop_property_criteria_matched": prop.get('prop_property_criteria_matched', 0),
                     'journey': prop.get('journey', {}),
@@ -111,15 +97,16 @@ def show_dashboard(firestore: FireStore):
                     "epc": prop.get("epc"),
                     "features": prop.get("features", []),
                     "council_tax_band": prop.get("council_tax_band", []),
-                    'distance_to_preferred_location': prop.get('distance_to_preferred_location', None),
-
-                    # only applicable for flats
+                    'distance_to_preferred_location': prop.get('distance_to_preferred_location'),
                     'ground_rent': prop.get('groundRent'),
                     'tenure_type': prop.get('tenure_type'),
                     'service_charge': prop.get('annualServiceCharge'),
                     'length_of_lease': prop.get('lengthOfLease'),
-
-                    # AI extracted
+                    'monthly_rent': prop.get('monthly_rent'),
+                    'deposit': prop.get('deposit'),
+                    'let_available': prop.get('let_available'),
+                    'furnish_type': prop.get('furnish_type'),
+                    'minimum_tenancy_months': prop.get('minimum_tenancy_months'),
                     "draft": prop.get('draft', {}),
                     "missing_info": prop.get('missing_info', {}),
                     "neighborhood_info": prop.get('neighborhood_info', {}),
@@ -128,129 +115,45 @@ def show_dashboard(firestore: FireStore):
                 }
                 st.session_state.property_shortlist[prop['property_id']] = property_data
 
-    if shortlist:
-        # Add refresh button to clear cache and reload
-        col1, col0, col2, col3 = st.columns([2, 1, 1, 1])
-        with col1:
-            sort_by = st.selectbox(
-                "Sort by",
-                options=[
-                    "Criteria Match: Most to Least",
-                    "Price: Low to High",
-                     "Price: High to Low",
-                     "Bedrooms: Most to Fewest",
-                     "Closest to the preferred location",
-                     "Newest First"
-                         ],
-                index=0,
-                placeholder="Criteria Match: Most to Least",
-                key="user_sort_order"
-            )
-        with col2:
-            # Filter checkbox for properties within 2km
-            preferred_location = "your preferred location"
-            if st.session_state.user_submission and st.session_state.user_submission.get('content'):
-                if st.session_state.user_submission['content'].get('preferred_location') :
-                    preferred_location = st.session_state.user_submission['content']['preferred_location'].split(",")[0]
+    shortlist = list(st.session_state.property_shortlist.values())
 
-            filter_within_2km = st.checkbox(
-                f"📍 Within 2km of {preferred_location}",
-                help="Show only properties within 2km of your preferred location"
-            )
-        with col3:
-            if st.button("🔄 Refresh Properties", type="secondary"):
-                # Clear the cache and reload
-                clear_all_caches()
-                st.rerun()
-        
-        # Apply distance filter if button is clicked
-        if filter_within_2km:
-            filtered_shortlist = []
-            for prop in shortlist:
-                distance = prop.get("distance_to_preferred_location", 500)
-                if distance <= 2.5:  # 2km = 2.0
-                    filtered_shortlist.append(prop)
-            shortlist = filtered_shortlist
-            st.info(f"📍 Showing {len(shortlist)} properties within 2km of your preferred location")
-        
-        if not sort_by:
-            sort_by_chosen_option("Criteria Match: Most to Least", shortlist)
-        sort_by_chosen_option(st.session_state.user_sort_order, shortlist)
+    if not shortlist:
+        st.info("No recommended properties are available right now. Please try refreshing later.")
+        render_refresh_button()
+        return
 
-        # Add custom CSS for property cards
-        st.markdown(get_dashboard_css(), unsafe_allow_html=True)
+    st.markdown(get_dashboard_css(), unsafe_allow_html=True)
 
-        # Create a grid of property cards
-        for i in range(0, len(shortlist), 3):
-            cols = st.columns(3)
-            for j in range(3):
-                if i + j < len(shortlist):
-                    prop = shortlist[i + j]
-                    with cols[j]:
-                        # Create property card
-                        #st.markdown('<div class="property-card">', unsafe_allow_html=True)
-                        with st.container(border=True):
-                            # Display property image
-                            if prop.get('compressed_images'):
-                                try:
-                                    # Decode the first image if not already decoded
-                                    if prop['property_id'] not in st.session_state.decoded_images:
+    listing_mode = determine_listing_mode(shortlist)
+    shortlist_by_mode = filter_shortlist_by_mode(shortlist, listing_mode)
 
-                                        if isinstance(prop['compressed_images'][0], str):
-                                            decoded_image = base64.b64decode(prop['compressed_images'][0])  # FIXME: backward compatible
-                                        elif isinstance(prop['compressed_images'][0], dict):
-                                            decoded_image = base64.b64decode(prop['compressed_images'][0]["base64"])
+    if not shortlist_by_mode:
+        st.info(f"No {listing_mode} properties are available yet. Adjust filters or refresh.")
+        render_refresh_button()
+        return
 
-                                        st.session_state.decoded_images[prop['property_id']] = [decoded_image]
+    sort_col, refresh_col = st.columns([3, 1])
+    with sort_col:
+        sort_choice = render_sort_control(listing_mode)
+    with refresh_col:
+        render_refresh_button()
 
-                                    st.image(
-                                        st.session_state.decoded_images[prop['property_id']][0],
-                                        use_column_width=True
-                                    )
-                                except Exception as e:
-                                    print(f"Error displaying image for property {prop['property_id']}: {str(e)}")
-                                    st.write("No image available")
+    filters = render_filter_controls(shortlist_by_mode, listing_mode, user_submission)
+    filtered_properties = filter_properties(shortlist_by_mode, listing_mode, filters)
 
-                            # Property title and price
-                            st.markdown(f'<div class="property-title">{prop["address"]}</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="property-price">£{prop["price"]:,}</div>', unsafe_allow_html=True)
-                            
-                            # Property details with emojis
-                            bedrooms = prop.get("num_bedrooms", 0)
-                            bathrooms = prop.get("num_bathrooms", 0)
-                            details_text = f"🛏️ {bedrooms} bed{'s' if bedrooms != 1 else ''}"
-                            if bathrooms:
-                                details_text += f" | 🚿 {bathrooms} bathroom{'s' if bathrooms != 1 else ''}"
-                            st.markdown(f'<div class="property-details">{details_text}</div>', unsafe_allow_html=True)
+    if filters.get("within_2km"):
+        preferred_location = get_preferred_location_label(user_submission)
+        st.info(f"📍 Showing {len(filtered_properties)} properties within 2km of {preferred_location}")
 
-                            # Display matched criteria
-                            match_criteria = prop.get("match_output", {})
-                            match_criteria_additional = prop.get("matched_criteria", {})
-                            match_criteria.update({criteria: True for criteria in match_criteria_additional})
+    if not filtered_properties:
+        st.warning("No properties match the current filters. Try adjusting your filters.")
+        return
 
-                            # Display distance to each locations if chosen
-                            distance_to_preferred_locations = prop.get("distance_to_preferred_locations", {})
+    sort_by_chosen_option(sort_choice, filtered_properties)
 
-                            if distance_to_preferred_locations:
-                                for location, distance in distance_to_preferred_locations.items():
-                                    if isinstance(distance, float) and distance < 2.5:
-                                        st.markdown(f"~{int(distance)} miles to {location}", unsafe_allow_html=True)
-
-                            criteria_html = '<div style="margin: 10px 0;">'
-                            for key, value in match_criteria.items():
-                                if isinstance(value, bool) and value:
-                                    criteria_html += f'<span class="criteria-tag">{key.replace("_", " ").capitalize()}</span>'
-                            criteria_html += '</div>'
-                            st.markdown(criteria_html, unsafe_allow_html=True)
-
-                            # View Details button
-                            if st.button(
-                                    "View Details",
-                                    key=f"detail_{prop['property_id']}",
-                                    use_container_width=True,
-                                    type="primary"
-                            ):
-                                st.query_params.update(property_id=prop['property_id'])
-                                st.rerun()
-                        
-                        #st.markdown('</div>', unsafe_allow_html=True)
+    for i in range(0, len(filtered_properties), 3):
+        cols = st.columns(3)
+        for j in range(3):
+            if i + j < len(filtered_properties):
+                with cols[j]:
+                    render_property_card(filtered_properties[i + j], listing_mode)

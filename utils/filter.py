@@ -17,6 +17,10 @@ def sort_by_chosen_option(sort_by, shortlist):
         shortlist.sort(key=lambda x: x.get("price", 0))
     elif sort_by == "Price: High to Low":
         shortlist.sort(key=lambda x: x.get("price", 0), reverse=True)
+    elif sort_by == "Rent: Low to High":
+        shortlist.sort(key=lambda x: x.get("monthly_rent", float('inf')))
+    elif sort_by == "Rent: High to Low":
+        shortlist.sort(key=lambda x: x.get("monthly_rent", 0), reverse=True)
     elif sort_by == "Bedrooms: Most to Fewest":
         shortlist.sort(key=lambda x: x.get("num_bedrooms", 0), reverse=True)
     elif sort_by == "Commute time to work: Shortest to Longest":
@@ -31,4 +35,3 @@ def sort_by_chosen_option(sort_by, shortlist):
 
 if __name__ == "__main__":
     shortlist = []
-

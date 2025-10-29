@@ -30,7 +30,6 @@ def render_property_details_tab(property_details):
     # Render matched criteria using the new components
     with st.container():
         render_property_criteria(property_details)
-        # render_lifestyle_criteria(property_details)
 
     # Display property details
     st.markdown("#### Property Details")
