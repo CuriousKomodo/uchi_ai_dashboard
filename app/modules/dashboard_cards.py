@@ -4,7 +4,12 @@ from typing import Any, Dict
 
 import streamlit as st
 
-from app.modules.dashboard_utils import format_currency, format_let_available, to_number
+from app.modules.dashboard_utils import (
+    format_currency,
+    format_let_available,
+    get_journey_duration,
+    to_number,
+)
 
 
 def _value_indicates_match(value: Any) -> bool:
@@ -92,6 +97,13 @@ def render_property_card(prop: Dict[str, Any], mode: str) -> None:
             details_text += f" | 🚿 {bathrooms} bathroom{'s' if bathrooms != 1 else ''}"
         st.markdown(f'<div class="property-details">{details_text}</div>', unsafe_allow_html=True)
 
+        commute_minutes = get_journey_duration(prop)
+        if mode == "sales" and commute_minutes is not None:
+            st.markdown(
+                f'<div class="property-details">🚆 Commute: {int(commute_minutes)} min</div>',
+                unsafe_allow_html=True
+            )
+
         if mode == "rental":
             furnish_type = prop.get("furnish_type")
             availability_label = format_let_available(prop.get("let_available"))
@@ -100,6 +112,11 @@ def render_property_card(prop: Dict[str, Any], mode: str) -> None:
             if furnish_type:
                 st.markdown(
                     f'<div class="property-details">🛋️ Furnishing: {furnish_type}</div>',
+                    unsafe_allow_html=True
+                )
+            if commute_minutes is not None:
+                st.markdown(
+                    f'<div class="property-details">🚆 Commute: {int(commute_minutes)} min</div>',
                     unsafe_allow_html=True
                 )
             if availability_label:

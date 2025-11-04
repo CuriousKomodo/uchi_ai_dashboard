@@ -57,7 +57,7 @@ def render_filter_controls(
             filters["max_journey_minutes"] = st.number_input(  # todo: not supported right now
                 "Maximum journey time (minutes)",
                 min_value=5,
-                value=int(journey_default or 0),
+                value=int(journey_default or 60),
                 step=5,
                 key="sales_journey_limit"
             )
@@ -76,7 +76,7 @@ def render_filter_controls(
             filters["max_deposit"] = st.number_input(
                 "Maximum deposit (£)",
                 min_value=0,
-                value=int(deposit_default or 0),
+                value=int(deposit_default or 2500),
                 step=100,
                 key="rental_deposit_limit"
             )
@@ -84,7 +84,7 @@ def render_filter_controls(
             filters["max_journey_minutes"] = st.number_input(
                 "Maximum journey time (minutes)",
                 min_value=5,
-                value=int(journey_default or 0),
+                value=int(journey_default or 60),
                 step=5,
                 key="rental_journey_limit"
             )

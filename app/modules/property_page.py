@@ -1,178 +1,13 @@
-import base64
 import streamlit as st
 
-from utils.draft import draft_enquiry
 from utils.image_utils import render_property_images
 
 from connection.firestore import FireStore
-from app.modules.chat import show_chat_interface
-from app.components.criteria_components import render_property_criteria
-
-from utils.text_utils import extract_conclusion
-from utils.demographic_utils import (
-    snake_case_to_title, 
-    format_description_analysis_value,
-)
 from app.components.location_components import render_location_tab
+from app.modules.property.header import render_property_header
+from app.modules.property.property_tab import render_property_tab
 
-def render_ai_notes(property_details):
-    """Render AI notes from image analysis."""
-    images_conclusion = extract_conclusion(property_details.get("image_analysis", ""))
-    if images_conclusion:
-        st.markdown("### UchiAI's notes")
-        st.markdown(images_conclusion)
-    compatibility_score = property_details.get("prop_property_criteria_matched")
-    if compatibility_score and isinstance(compatibility_score, float):
-        st.markdown(f"#### Compatibility score: {round(compatibility_score, 2)*100} %")
 
-def render_property_details_tab(property_details):
-    """Render the Property Details tab content."""
-    # Render matched criteria using the new components
-    with st.container():
-        render_property_criteria(property_details)
-
-    # Display property details
-    st.markdown("#### Property Details")
-    with st.container(border=True):
-        st.markdown("**Additional Information**")
-        description_analysis = property_details.get('description_analysis', {})
-
-        if description_analysis:
-            # Skip 'features' as it's displayed separately below
-            for key, value in description_analysis.items():
-                if key != 'features':
-                    formatted_key = snake_case_to_title(key)
-                    formatted_value = format_description_analysis_value(value)
-                    st.markdown(f"**{formatted_key}:** {formatted_value}")
-        else:
-            st.markdown("*No AI extracted information available*")
-
-    # Display features in a nice grid layout
-    features_to_display = []
-    
-    # Get features from description_analysis first
-    description_analysis = property_details.get('description_analysis', {})
-    if description_analysis.get('features'):
-        features_to_display.extend(description_analysis['features'])
-    
-    # Add existing features if they exist and aren't already included
-    if property_details.get('features'):
-        for feature in property_details['features']:
-            if feature not in features_to_display:
-                features_to_display.append(feature)
-    
-    if features_to_display:
-        st.markdown("#### Key Features")
-        st.markdown("""
-            <style>
-            .feature-grid {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-                margin: 15px 0;
-            }
-            .feature-item {
-                background-color: #f0f2f6;
-                padding: 10px 15px;
-                border-radius: 5px;
-                font-size: 16px;
-                display: flex;
-                align-items: center;
-            }
-            .feature-item::before {
-                content: "✓";
-                color: #00acb5;
-                font-weight: bold;
-                margin-right: 8px;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-        
-        # Create the feature grid
-        features_html = '<div class="feature-grid">'
-        for feature in features_to_display:
-            features_html += f'<div class="feature-item">{feature}</div>'
-        features_html += '</div>'
-        
-        st.markdown(features_html, unsafe_allow_html=True)
-
-    # Display floorplan and EPC side by side in bordered boxes
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### Floorplan")
-        with st.container(border=True, height=500):
-            st.markdown('<div class="bordered-box">', unsafe_allow_html=True)
-            if property_details.get('floorplan'):
-                try:
-                    # Handle base64 string floorplan
-                    floorplan_data = property_details['floorplan']
-                    if isinstance(floorplan_data, str):
-                        # Decode base64 string and display
-                        decoded_floorplan = base64.b64decode(floorplan_data)
-                        st.image(decoded_floorplan, caption="Floorplan", width=300)
-                    else:
-                        st.markdown("Ask agent for floorplan")
-                except Exception as e:
-                    st.markdown(f"Ask agent for floorplan")
-                    print(f"Floorplan display error: {str(e)}")
-            else:
-                st.info("Ask Agent for floorplan")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown("#### Energy Performance Certificate")
-        with st.container(border=True, height=500):
-            st.markdown('<div class="bordered-box">', unsafe_allow_html=True)
-            if property_details.get('epc'):
-                try:
-                    # Handle both URL and base64 encoded images
-                    if isinstance(property_details['epc'], str):
-                        if property_details['epc'].startswith('data:image'):
-                            # Handle base64 encoded image
-                            st.image(property_details['epc'], caption="EPC Rating", width=300)
-                        else:
-                            # Handle URL
-                            st.image(property_details['epc'], caption="EPC Rating", width=300)
-                    else:
-                        st.error("Invalid EPC image format")
-                except Exception as e:
-                    st.error(f"Error displaying EPC: {str(e)}")
-                    print(f"EPC display error: {str(e)}")
-            else:
-                st.info("EPC not available")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-def render_property_header(property_details, property_id):
-    """Render the property header with title, price, bedrooms, and draft enquiry button."""
-    # Property title
-    st.title(property_details['address'])
-    
-    # Price, bedrooms, and draft enquiry button in the same row
-    col1, col2, col3 = st.columns([5, 1, 1])
-    
-    with col1:
-        st.markdown(f"### £{property_details['price']:,} | {property_details['num_bedrooms']} bedrooms")
-    
-    with col2:
-        if st.button(
-            "✉️ Draft enquiry",
-            key=f"draft_enquiry_{property_id}",
-            type="primary"
-        ):
-            # Generate draft message
-            message = draft_enquiry(
-                property_details=property_details,
-                customer_name=st.session_state.get('first_name', 'Customer'),
-            )
-            # Store in session state
-            st.session_state[f"draft_msg_{property_id}"] = message
-            st.session_state[f"show_draft_{property_id}"] = True
-    with col3:
-        st.link_button(
-            "View original",
-            url=f"https://www.rightmove.co.uk/properties/{property_id}"
-        )
 
 
 def render_draft_expander(property_id):
@@ -218,7 +53,13 @@ def show_property_page(firestore: FireStore):
     # Try to get property details from session state first
     property_details = None
     if hasattr(st.session_state, 'property_shortlist'):
-        property_details = st.session_state.property_shortlist.get(int(property_id))
+        shortlist = st.session_state.property_shortlist
+        property_details = shortlist.get(property_id)
+        if property_details is None:
+            try:
+                property_details = shortlist.get(int(property_id))
+            except (TypeError, ValueError):
+                property_details = None
     
     # If not in session state, fetch from Firestore
     if not property_details:
@@ -243,17 +84,15 @@ def show_property_page(firestore: FireStore):
     # Display images in a 2x4 grid
     render_property_images(property_details, property_id)
 
-    # Render AI notes
-    render_ai_notes(property_details)
-
     # Property details in tabs
     tab1, tab2 = st.tabs(["Property Details", "Location"])
 
     with tab1:
-        render_property_details_tab(property_details)
+        render_property_tab(property_details)
 
     with tab2:
-        render_location_tab(property_details)
+        user_submission = st.session_state.get("user_submission")
+        render_location_tab(property_details, user_submission)
 
     # with tab3:
     #     show_chat_interface()

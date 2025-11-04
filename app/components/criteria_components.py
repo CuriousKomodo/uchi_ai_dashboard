@@ -68,12 +68,12 @@ def get_criteria_styles():
         </style>
     """
 
-def render_criteria_grid(criteria_dict, title, colors=None):
+def render_criteria_grid(criterion, title, colors=None):
     """
     Render a criteria grid with the given criteria dictionary.
     
     Args:
-        criteria_dict: Dictionary of criteria where True values will be displayed
+        criterion: list of criteria where True values will be displayed
         title: Title for the criteria section
         colors: List of color names to cycle through (defaults to standard colors)
     """
@@ -88,20 +88,17 @@ def render_criteria_grid(criteria_dict, title, colors=None):
     
     # Create the criteria grid HTML
     criteria_html = '<div class="criteria-grid">'
-    for idx, (key, value) in enumerate(criteria_dict.items()):
-        if isinstance(value, bool) and value:
-            color_class = f'criteria-{colors[idx % len(colors)]}'
-            formatted_key = key.replace("_", " ").capitalize()
-            criteria_html += f'<div class="criteria-item {color_class}">{formatted_key}</div>'
+    for idx, value in enumerate(criterion):
+        color_class = f'criteria-{colors[idx % len(colors)]}'
+        formatted_key = value.replace("_", " ").capitalize()
+        criteria_html += f'<div class="criteria-item {color_class}">{formatted_key}</div>'
     criteria_html += '</div>'
     
     st.markdown(criteria_html, unsafe_allow_html=True)
 
 def render_property_criteria(property_details):
     """Render matched property criteria."""
-    match_criteria = property_details.get("match_output", {})
-    match_criteria_additional = property_details.get("matched_criteria", {})
-    match_criteria.update({criteria: True for criteria in match_criteria_additional})
+    match_criteria = property_details.get("matched_criteria", {})
     
     if match_criteria:
         render_criteria_grid(match_criteria, "Matched Property Criteria")

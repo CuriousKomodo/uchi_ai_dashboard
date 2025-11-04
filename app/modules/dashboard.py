@@ -71,7 +71,7 @@ def show_dashboard(firestore: FireStore):
             shortlisted_properties = firestore.get_shortlists_by_user_id(st.session_state.user_id)
             st.session_state.property_shortlist = {}
             for prop in shortlisted_properties:
-                if isinstance(prop.get('address'), dict) and "" in prop['address']:
+                if isinstance(prop.get('address'), dict):
                     address = prop['address']["displayAddress"]
                 else:
                     address = prop.get('address')
@@ -90,7 +90,7 @@ def show_dashboard(firestore: FireStore):
                     'match_output': prop.get('match_output', {}),
                     'matched_criteria': prop.get('query_matched', []) + prop.get('matched_criteria', []),
                     'matched_lifestyle_criteria': prop.get('lifestyle_criteria_matched', {}),
-                    "prop_property_criteria_matched": prop.get('prop_property_criteria_matched', 0),
+                    "prop_criteria_matched": prop.get('prop_criteria_matched', 0),
                     'journey': prop.get('journey', {}),
                     'deprivation': prop.get('deprivation'),
                     'places_of_interest': prop.get('places_of_interest', []),

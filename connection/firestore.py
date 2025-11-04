@@ -129,7 +129,7 @@ class FireStore:
             return []
         
         # Filter for recent shortlists (last 14 days)
-        return [shortlist for shortlist in shortlists if shortlist.create_time > datetime.now(timezone.utc) - timedelta(days=14)]
+        return [shortlist for shortlist in shortlists if shortlist.create_time > datetime.now(timezone.utc) - timedelta(days=30)]
 
     def _extract_property_ids_from_shortlists(self, shortlists: List) -> List[str]:
         """Extract all property IDs from shortlists."""

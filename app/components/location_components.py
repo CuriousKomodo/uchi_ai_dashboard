@@ -1,72 +1,206 @@
+from typing import Any, Dict, Optional
+
 import streamlit as st
 from streamlit_folium import folium_static
 from utils.map_utils import create_property_map
-from utils.place_utils import get_place_icon_and_color, get_place_emoji, categorize_places
+from utils.place_utils import get_place_emoji, categorize_places
 from utils.demographic_utils import (
     get_population_growth_color,
     get_deprivation_rate_color,
     get_crime_rate_color
 )
 from app.components.criteria_components import render_lifestyle_criteria
+from app.modules.property.utils import format_currency, value_or_placeholder
 
-def render_transport_info(property_details):
+
+TRANSPORT_EMOJIS = {
+    "walk": "🚶",
+    "bus": "🚌",
+    "tube": "🚇",
+    "train": "🚆",
+    "tram": "🚊",
+    "bike": "🚲",
+    "car": "🚗",
+    "overground": "🚈",
+    "dlr": "🚈",
+}
+
+
+def _map_status(color_code: str) -> str:
+    mapping = {
+        "normal": "positive",
+        "inverse": "negative",
+        "off": "neutral",
+    }
+    return mapping.get(color_code, "neutral")
+
+
+def _render_demographic_metric(label: str, value: str, status: str, help_text: Optional[str] = None) -> None:
+    st.markdown(
+        """
+        <style>
+        .demographic-metric {
+            background-color: #f0f2f6;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        .demographic-metric .label {
+            color: #6c757d;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .demographic-metric .value {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        .demographic-metric.positive {
+            border-left: 4px solid #00acb5;
+        }
+        .demographic-metric.negative {
+            border-left: 4px solid #d9534f;
+        }
+        .demographic-metric.neutral {
+            border-left: 4px solid #adb5bd;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    help_suffix = f"<div class='help-text'>{help_text}</div>" if help_text else ""
+    st.markdown(
+        f"""
+        <div class="demographic-metric {status}">
+            <div class="label">{label}</div>
+            <div class="value">{value}</div>
+            {help_suffix}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _normalize_journey_data(property_details: Dict[str, Any]) -> Dict[str, Any]:
+    journey = property_details.get("journey") or {}
+    if isinstance(journey, dict) and "journey" in journey and isinstance(journey["journey"], dict):
+        return journey["journey"]
+    return journey if isinstance(journey, dict) else {}
+
+
+def _render_mode_breakdown(mode: str, data: Dict[str, Any]) -> None:
+    emoji = TRANSPORT_EMOJIS.get(mode.lower(), "🧭")
+    duration = data.get("duration")
+    primary_line = f"{emoji} **{mode.title()}**"
+    if duration:
+        primary_line += f" · {value_or_placeholder(duration, 'Unknown')} min"
+    st.markdown(primary_line)
+
+    legs = data.get("legs")
+    if isinstance(legs, list):
+        for leg in legs:
+            route = leg.get("route")
+            origin = leg.get("from")
+            destination = leg.get("to")
+            segment = " → ".join(filter(None, [origin, destination]))
+            detail = segment if segment else "Segment"
+            if route not in (None, ""):
+                detail = f"Route {route}: {detail}"
+            st.markdown(f"&nbsp;&nbsp;↳ {detail}", unsafe_allow_html=True)
+
+
+def render_transport_info(property_details: Dict[str, Any], user_submission: Optional[Dict[str, Any]]) -> None:
     """Render transport information in a bordered container."""
+    journey_data = _normalize_journey_data(property_details)
+    total = journey_data.get("total") or journey_data.get("duration")
+    modes = journey_data.get("modes") if isinstance(journey_data.get("modes"), dict) else {}
+
+    workplace = None
+    if user_submission and isinstance(user_submission, dict):
+        content = user_submission.get("content") or {}
+        workplace = content.get("workplace_location")
+
     with st.container(border=True):
         st.markdown("### 🚉 Transport Information")
-        
-        # Commute time
-        if property_details.get("journey") and property_details["journey"].get("duration"):
-            st.markdown(f"**Commute to work:** {property_details['journey'].get('duration')} min")
-        
+
+        if workplace or total is not None or modes:
+            header = workplace or "Commute to work"
+            if total is not None:
+                header += f" · {value_or_placeholder(total, 'Ask agent')} min"
+            st.markdown(f"**{header}**")
+
+            for mode, data in modes.items():
+                if isinstance(data, dict):
+                    _render_mode_breakdown(mode, data)
+
         # Nearest stations
-        if "stations" in property_details:
-            st.markdown("**Nearest Stations:**")
-            for station in property_details["stations"]:
-                st.markdown(f"- {station['station']} ({station['distance']} miles)")
+        stations = property_details.get("stations")
+        if stations:
+            st.markdown("**Nearest stations**")
+            for station in stations:
+                name = station.get("station") or station.get("name")
+                distance = station.get("distance")
+                if name:
+                    suffix = f" ({distance} miles)" if distance else ""
+                    st.markdown(f"- {name}{suffix}")
 
 def render_neighborhood_statistics(property_details):
     """Render neighborhood statistics with color-coded metrics."""
     st.markdown("### 📊 Neighborhood Statistics")
     with st.container(border=True):
-        col1, col2, col3, col4, col5 = st.columns(5)
-
-        neighborhood_information = property_details.get("neighborhood_information")  # FIXME
+        neighborhood_information = property_details.get("neighborhood_information")
         neighborhood_information = property_details.get("neighborhood_info") if not neighborhood_information else neighborhood_information
         demographic_stats = neighborhood_information.get("demographics", {}) if neighborhood_information else {}
-        
-        with col1:
-            if demographic_stats.get('crime_rate') is not None:
-                crime_rate = str(demographic_stats['crime_rate'])
-                color = get_crime_rate_color(crime_rate)
-                st.metric("Crime Rate", crime_rate, delta_color=color, help="#Crimes per 1000 people")
-                
-        with col2:
-            if demographic_stats.get('deprivation_rate') is not None:
-                deprivation_rate = str(demographic_stats['deprivation_rate'])
-                color = get_deprivation_rate_color(deprivation_rate)
-                st.metric("Deprivation Rate", deprivation_rate, delta_color=color, help="Proportion of households reported with deprivation in at least one of the dimensions")
-                
-        with col3:
-            if demographic_stats.get('avg_income') is not None:
-                avg_income = str(demographic_stats['avg_income'])
-                # Format income properly if it doesn't have currency symbol
-                if not avg_income.startswith('£') and not avg_income.startswith('$'):
-                    avg_income = f"£{avg_income}"
-                st.metric("Avg. Household Income", avg_income)
-                
-        with col4:
-            if demographic_stats.get('10_year_population_growth') is not None:
-                growth = str(demographic_stats['10_year_population_growth'])
-                color = get_population_growth_color(growth)
-                st.metric("10-Year Population Growth", growth, delta_color=color)
-                
-        with col5:
-            if demographic_stats.get('degree_rate') is not None:
-                degree_rate = str(demographic_stats['degree_rate'])
-                st.metric("Degree Rate", degree_rate, help="Proportion of households with higher education")
-        
-        if neighborhood_information and neighborhood_information.get('asking_price') is not None:
-            st.markdown(f"**Avg. Asking Price for {property_details['num_bedrooms']} bedrooms**: £{neighborhood_information['asking_price']}")
+
+        columns = st.columns(5)
+
+        if demographic_stats.get('crime_rate') is not None:
+            crime_rate = str(demographic_stats['crime_rate'])
+            status = _map_status(get_crime_rate_color(crime_rate))
+            with columns[0]:
+                _render_demographic_metric("Crime rate", crime_rate, status, "Crimes per 1,000 people")
+
+        if demographic_stats.get('deprivation_rate') is not None:
+            deprivation_rate = str(demographic_stats['deprivation_rate'])
+            status = _map_status(get_deprivation_rate_color(deprivation_rate))
+            with columns[1]:
+                _render_demographic_metric(
+                    "Deprivation rate",
+                    deprivation_rate,
+                    status,
+                    "Households facing deprivation in ≥1 dimension",
+                )
+
+        if demographic_stats.get('avg_income') is not None:
+            avg_income = demographic_stats['avg_income']
+            formatted_income = format_currency(avg_income)
+            with columns[2]:
+                _render_demographic_metric("Avg. household income", formatted_income, "neutral")
+
+        if demographic_stats.get('10_year_population_growth') is not None:
+            growth = str(demographic_stats['10_year_population_growth'])
+            status = _map_status(get_population_growth_color(growth))
+            with columns[3]:
+                _render_demographic_metric("10-year population growth", growth, status)
+
+        if demographic_stats.get('degree_rate') is not None:
+            degree_rate = str(demographic_stats['degree_rate'])
+            with columns[4]:
+                _render_demographic_metric("Degree rate", degree_rate, "neutral", "Households with higher education")
+
+        if neighborhood_information:
+            bedrooms = property_details.get('num_bedrooms')
+            asking_price = neighborhood_information.get('asking_price')
+            asking_rent = neighborhood_information.get('asking_rent')
+            if asking_price is not None:
+                st.markdown(
+                    f"**Avg. asking price for {bedrooms} bedrooms:** {format_currency(asking_price)}"
+                )
+            elif asking_rent is not None:
+                st.markdown(
+                    f"**Avg. asking rent for {bedrooms} bedrooms:** {format_currency(asking_rent)} pcm"
+                )
 
 
 def render_places_of_interest_by_category(property_details):
@@ -274,7 +408,7 @@ def render_nearby_green_spaces_list(nearby_green_spaces):
                 use_container_width=True
             )
 
-def render_location_tab(property_details):
+def render_location_tab(property_details, user_submission=None):
     """Render the Location tab content."""
     # Render all location-related sections
     render_neighborhood_statistics(property_details)
@@ -327,7 +461,7 @@ def render_location_tab(property_details):
         #     """)
     
     with col2:
-        render_transport_info(property_details)
+        render_transport_info(property_details, user_submission)
 
     # Render lifestyle criteria first (neighborhood-related)
 
