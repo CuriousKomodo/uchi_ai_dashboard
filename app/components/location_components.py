@@ -175,7 +175,10 @@ def render_neighborhood_statistics(property_details):
 
         if demographic_stats.get('avg_income') is not None:
             avg_income = demographic_stats['avg_income']
+            if avg_income:
+                avg_income = str(int(avg_income.replace(",", "")))
             formatted_income = format_currency(avg_income)
+
             with columns[2]:
                 _render_demographic_metric("Avg. household income", formatted_income, "neutral")
 

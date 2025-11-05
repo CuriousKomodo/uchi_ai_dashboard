@@ -12,11 +12,11 @@ def determine_property_mode(property_details: Dict[str, Any]) -> str:
 def format_currency(value: Optional[Any]) -> str:
     """Format numeric values as currency with thousands separators."""
     if value in (None, "", "None"):
-        return "Ask agent"
+        return "N/A"
     try:
         return f"£{int(float(value)):,}"
     except (TypeError, ValueError):
-        return "Ask agent"
+        return "N/A"
 
 
 def format_price(value: Optional[Any]) -> str:

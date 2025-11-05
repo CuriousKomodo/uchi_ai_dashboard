@@ -21,9 +21,9 @@ def render_ai_summary(property_details: Dict[str, Any]) -> None:
         st.markdown("### UchiAI's notes")
         st.markdown(images_conclusion)
 
-    compatibility_score = property_details.get("prop_criteria_matched")
-    if isinstance(compatibility_score, (int, float)):
-        st.markdown(f"#### Compatibility score: {round(float(compatibility_score), 2) * 100:.0f}%")
+    # compatibility_score = property_details.get("prop_criteria_matched")
+    # if isinstance(compatibility_score, (int, float)):
+    #     st.markdown(f"#### Compatibility score: {round(float(compatibility_score), 2) * 100:.0f}%")
 
 
 def _get_additional_description_items(mode: str, property_details: Dict[str, Any]) -> Dict[str, Any]:
