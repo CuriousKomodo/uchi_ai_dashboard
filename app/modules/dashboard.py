@@ -111,6 +111,7 @@ def show_dashboard(firestore: FireStore):
                     "neighborhood_info": prop.get('neighborhood_info', {}),
                     "description_analysis": prop.get('description_analysis', {}),
                     "image_analysis": prop.get('image_analysis', {}),
+                    "created_at": prop.get('created_at'),
                 }
                 st.session_state.property_shortlist[prop['property_id']] = property_data
     shortlist = list(st.session_state.property_shortlist.values())

@@ -215,7 +215,7 @@ class FireStore:
                 
                 # Process journey data
                 # prop = self._process_journey_data(prop)
-                
+                prop["created_at"] = shortlist_data.get("created_at")
                 all_shortlisted_properties.append(prop)
                 seen_ids.add(property_id)
         
