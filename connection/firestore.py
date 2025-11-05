@@ -189,7 +189,7 @@ class FireStore:
     def _process_journey_data(self, prop: Dict) -> Dict:
         """Process and simplify journey data."""
         if prop.get("journey"):
-            prop["journey"] = {"duration": prop["journey"]["duration"]}
+            prop["journey"] = {"duration": prop["journey"]["total"]}
         return prop
 
     def _build_enriched_shortlist(self, shortlists: List, properties: Dict[str, Dict], extractions: Dict[str, Dict]) -> List[Dict]:
@@ -214,7 +214,7 @@ class FireStore:
                     prop = self._enrich_property_with_extraction(prop, extractions[property_id])
                 
                 # Process journey data
-                prop = self._process_journey_data(prop)
+                # prop = self._process_journey_data(prop)
                 
                 all_shortlisted_properties.append(prop)
                 seen_ids.add(property_id)
@@ -256,7 +256,6 @@ class FireStore:
         try:
             # Query submissions collection for the user_id
             submissions = self.submission_collection.where("user_id", "==", user_id).get()
-            
             if not submissions:
                 return []
             

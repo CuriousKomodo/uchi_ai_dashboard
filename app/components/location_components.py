@@ -243,7 +243,8 @@ def render_places_of_interest_by_category(property_details):
                     rating = f"⭐ {rating}"
                 
                 types_str = ', '.join(place.get('types', [])[:2]) if place.get('types') else 'N/A'
-                
+                types_str = types_str.replace("_", " ")
+
                 address = place.get('address', 'N/A')
                 if address != 'N/A':
                     # Show shortened address
@@ -380,7 +381,8 @@ def render_nearby_green_spaces_list(nearby_green_spaces):
                 rating = f"⭐ {rating}"
             
             types_str = ', '.join(green_space.get('types', [])[:2]) if green_space.get('types') else 'N/A'
-            
+            types_str = types_str.replace("_", " ")
+
             address = green_space.get('address', 'N/A')
             if address != 'N/A':
                 # Show shortened address

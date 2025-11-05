@@ -40,7 +40,7 @@ def render_filter_controls(
             filters["min_years_left_on_lease"] = st.number_input(
                 "Minimum years left on lease",
                 min_value=50,
-                value=int(lease_default or 0),
+                value=int(lease_default or 150),
                 step=1,
                 key="sales_min_years_left"
             )
@@ -49,7 +49,7 @@ def render_filter_controls(
             filters["max_service_charge"] = st.number_input(
                 "Maximum annual service charge (£)",
                 min_value=0,
-                value=int(service_charge_default or 0),
+                value=int(service_charge_default or 2000),
                 step=100,
                 key="sales_service_charge_limit"
             )
