@@ -22,7 +22,6 @@ def render_ai_summary(property_details: Dict[str, Any]) -> None:
         st.markdown(images_conclusion)
 
     compatibility_score = property_details.get("prop_criteria_matched")
-    print(property_details.keys())
     if isinstance(compatibility_score, (int, float)):
         st.markdown(f"#### Compatibility score: {round(float(compatibility_score), 2) * 100:.0f}%")
 

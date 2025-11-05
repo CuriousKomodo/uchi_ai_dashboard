@@ -114,7 +114,6 @@ def show_dashboard(firestore: FireStore):
                     "image_analysis": prop.get('image_analysis', {}),
                 }
                 st.session_state.property_shortlist[prop['property_id']] = property_data
-
     shortlist = list(st.session_state.property_shortlist.values())
 
     if not shortlist:

@@ -10,8 +10,7 @@ from utils.demographic_utils import (
     get_crime_rate_color
 )
 from app.components.criteria_components import render_lifestyle_criteria
-from app.modules.property.utils import format_currency, value_or_placeholder
-
+from app.modules.property.utils import format_currency, value_or_placeholder, determine_property_mode
 
 TRANSPORT_EMOJIS = {
     "walk": "🚶",
@@ -141,6 +140,8 @@ def render_transport_info(property_details: Dict[str, Any], user_submission: Opt
             for station in stations:
                 name = station.get("station") or station.get("name")
                 distance = station.get("distance")
+                if isinstance(distance, float):
+                    distance = round(distance, 2)
                 if name:
                     suffix = f" ({distance} miles)" if distance else ""
                     st.markdown(f"- {name}{suffix}")
@@ -189,15 +190,16 @@ def render_neighborhood_statistics(property_details):
             with columns[4]:
                 _render_demographic_metric("Degree rate", degree_rate, "neutral", "Households with higher education")
 
+        mode = determine_property_mode(property_details)
         if neighborhood_information:
             bedrooms = property_details.get('num_bedrooms')
             asking_price = neighborhood_information.get('asking_price')
             asking_rent = neighborhood_information.get('asking_rent')
-            if asking_price is not None:
+            if mode == "sales":
                 st.markdown(
                     f"**Avg. asking price for {bedrooms} bedrooms:** {format_currency(asking_price)}"
                 )
-            elif asking_rent is not None:
+            else:
                 st.markdown(
                     f"**Avg. asking rent for {bedrooms} bedrooms:** {format_currency(asking_rent)} pcm"
                 )
@@ -256,7 +258,7 @@ def render_places_of_interest_by_category(property_details):
                     'Place URI': place.get('place_uri', ''),
                     'Website URL': place.get('url', '')
                 })
-            
+
             # Display table
             if table_data:
                 st.dataframe(

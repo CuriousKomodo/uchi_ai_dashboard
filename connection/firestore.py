@@ -161,7 +161,7 @@ class FireStore:
             "price": property_data.get("price"),
             "num_bedrooms": property_data.get("num_bedrooms"),
             "num_bathrooms": property_data.get("num_bathrooms"),
-            "stations": property_data.get("stations"),
+            "stations": property_data.get("stations") or property_data.get('property_details', {}).get('nearestStations', []),
             "latitude": property_data.get("latitude"),
             "longitude": property_data.get("longitude"),
             "features": property_data.get("features"),
