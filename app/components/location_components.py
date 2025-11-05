@@ -122,17 +122,6 @@ def render_transport_info(property_details: Dict[str, Any], user_submission: Opt
 
     with st.container(border=True):
         st.markdown("### 🚉 Transport Information")
-
-        if workplace or total is not None or modes:
-            header = workplace or "Commute to work"
-            if total is not None:
-                header += f" · {value_or_placeholder(total, 'Ask agent')} min"
-            st.markdown(f"**{header}**")
-
-            for mode, data in modes.items():
-                if isinstance(data, dict):
-                    _render_mode_breakdown(mode, data)
-
         # Nearest stations
         stations = property_details.get("stations")
         if stations:
@@ -145,6 +134,17 @@ def render_transport_info(property_details: Dict[str, Any], user_submission: Opt
                 if name:
                     suffix = f" ({distance} miles)" if distance else ""
                     st.markdown(f"- {name}{suffix}")
+
+        if workplace or total is not None or modes:
+            header = workplace or "Commute to work"
+            if total is not None:
+                header += f" · {value_or_placeholder(total, 'unknown')} min"
+            st.markdown(f"**{header}**")
+
+            for mode, data in modes.items():
+                if isinstance(data, dict):
+                    _render_mode_breakdown(mode, data)
+
 
 def render_neighborhood_statistics(property_details):
     """Render neighborhood statistics with color-coded metrics."""
