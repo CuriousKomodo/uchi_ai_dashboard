@@ -223,7 +223,9 @@ def render_places_of_interest_by_category(property_details):
         if place_types:
             st.markdown("**Found nearby:**")
             type_summary = ", ".join([f"{count} {place_type}" for place_type, count in sorted(place_types.items(), key=lambda x: x[1], reverse=True)[:5]])
+            type_summary = type_summary.replace("_", " ")
             st.markdown(f"*{type_summary}*")
+
         
         # Categorize places
         categorized_places = categorize_places(places)
